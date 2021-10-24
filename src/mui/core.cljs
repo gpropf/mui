@@ -1,4 +1,4 @@
-(ns rasto.mui
+(ns mui.core
   "mui: Minimalist User Interface. The idea here is that one should not
   spend time developing a complex gui for an app unless you are either
   done with the core functionality or going to have non-technical
