@@ -1,0 +1,9 @@
+{:paths
+ ["src" "tests" "resources" "target"]
+
+ :deps
+ {org.clojure/clojurescript {:mvn/version "1.10.597"}
+  reagent/reagent           {:mvn/version "0.10.0"}
+  }
+
+ }
