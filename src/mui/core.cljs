@@ -45,7 +45,7 @@
                                   (merge mui-cmd-map (:app-cmds app-cfg))
                                   mui-cmd (mui-cmd-map-including-app-cmds k)
                                   cmd-txtarea (. js/document getElementById  "command-window")]
-                              (println "rasto/mui - CMDS1: " cmd-txtarea)
+                              (println "mui/core - CMDS1: " cmd-txtarea)
                               ;(pprint app-cfg)
                               (println (repeat 30 "="))
                               (println "CMDS: " mui-cmd-map-including-app-cmds)
