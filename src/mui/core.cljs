@@ -26,15 +26,21 @@
 (defonce mui-state (atom {:command-buffer ""}))
 
 
+
+
 (def mui-cmd-map
   ;"Basic Mui commands common to all applications, even those besides Rasto."
-  {"c" (fn [] (swap! mui-state assoc :command-buffer ""))
+  {"c" {:fn (fn []
+              (let [cmd-txtarea (. js/document getElementById  "command-window")]
+                (set! (. cmd-txtarea -value) "")
+                (swap! mui-state assoc :command-buffer "")))}})
 
 
-                  })
-
-
-
+(defn append-to-field
+  [field text]
+  (let [field-obj (. js/document getElementById field)
+        field-obj-val (. field-obj -value)]
+    (set! (. field-obj -value) (str field-obj-val text))))
 
 
 
@@ -43,36 +49,44 @@
                             (let [k (.-key event)
                                   mui-cmd-map-including-app-cmds
                                   (merge mui-cmd-map (:app-cmds app-cfg))
-                                  mui-cmd (mui-cmd-map-including-app-cmds k)
-                                  cmd-txtarea (. js/document getElementById  "command-window")]
-                              (println "mui/core - CMDS1: " cmd-txtarea)
+                                  mui-cmd (get-in mui-cmd-map-including-app-cmds [k :fn])
+                                  cmd-txtarea (. js/document getElementById  "command-window")
+                                  keycode (.-keyCode event)
+                                  key (.-key event)]
+                              (println "mui/core - CMDS2: " cmd-txtarea)
                               ;(pprint app-cfg)
                               (println (repeat 30 "="))
                               (println "CMDS: " mui-cmd-map-including-app-cmds)
-                              (println "KEY: " (.-key event)
+                              (println "KEY: " key
                                        ", CODE" (.-code event)
-                                       ", KEYCODE" (.-keyCode event)
+                                       ", KEYCODE" keycode
                                        ", WHICH" (.-which event)
                                        ", Alt, Cntr, Shift, Meta" (.-altKey event)
                                        (.-ctrlKey event)
                                        (.-shiftKey event)
                                        (.-metaKey event))
-                              (println "Textarea properties: " (js/jQuery "#command-window"))
-                              (println "Textarea selectionStart: "
-                                       (. cmd-txtarea -selectionStart))
-                              (set! (.. cmd-txtarea -selectionEnd) 4)
-                              (set! (.. cmd-txtarea -selectionStart) 4)
-                              (when mui-cmd (apply mui-cmd []))
-                              (swap! mui-state update :command-buffer str k)) true)]
+                              #_(println "Textarea properties: " (js/jQuery "#command-window"))
+                              #_(println "Textarea selectionStart: "
+                                         (. cmd-txtarea -selectionStart))
+                              #_(set! (.. cmd-txtarea -selectionEnd) 4)
+                              #_(set! (.. cmd-txtarea -selectionStart) 4)
+                              (when mui-cmd
+                                (println "APPLYING CMD " k)
+                                (apply mui-cmd [{}]))
+                              #_(swap! mui-state assoc :command-buffer
+                                     (-> event .-target .-value))))]
 
     [:div
      [:textarea  (merge (:command-window app-cfg)
                         {:value (:command-buffer @mui-state)
                                         ;:on-key-press (fn [event] (println (.-key event)))
                          ;:on-key-press keystroke-handler
-                         :on-key-down keystroke-handler})]
+                         :on-key-down keystroke-handler
+                         :on-change (fn [event]
+                                      (swap! mui-state assoc :command-buffer
+                                             (-> event .-target .-value)))})]
 
-     [:div ;output frame
+     [:div "Status Readout2"
       ]
-     [:div ;maybe status bar or something
+     [:div "Structure View" ;maybe status bar or something
       ]]))
