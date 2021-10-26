@@ -41,10 +41,12 @@
 
 (def mui-cmd-map
   ;"Basic Mui commands common to all applications, even those besides Rasto."
-  {"c" {:fn (fn []
+  {"c" {:fn (fn [arg-map]
               (let [cmd-txtarea (. js/document getElementById  "command-window")]
+                (println "CLEARING WINDOW!!")
                 (set! (. cmd-txtarea -value) "")
-                (swap! mui-state assoc :command-buffer "")))}})
+                (swap! mui-state assoc :command-buffer "")))
+        :args {}}})
 
 
 
@@ -60,6 +62,7 @@
 
 (defn set-mode [mode query-map]
   (let []
+    (println "SET-MODE with query: " query-map ", mode: " mode)
     (swap! mui-state assoc
            :mode mode
            :query query-map)
@@ -67,13 +70,41 @@
   )
 
 
+(defn present-prompt [arg-data textarea-element]
+  (println-fld "command-window" (str "\n" (:prompt arg-data)))
+  (swap! mui-state assoc :prompt-end (.-selectionStart textarea-element)))
+
+
+(defn load-prompts [textarea-element]
+  (let [query-args (get-in @mui-state [:query :args])
+        args-to-get (filter (fn [[arg arg-data]]
+                              (nil? (:val arg-data))) query-args)
+        [arg arg-data] (first args-to-get)]
+    (swap! mui-state assoc :current-arg [arg arg-data])
+
+    (if arg-data (present-prompt arg-data textarea-element)
+        (do
+          (println "Mui-STATE: " @mui-state "FN: " (get-in @mui-state [:query :fn]) "\nARGS: " (get-in @mui-state [:query :args]))
+          #_(set-mode :normal {})
+          (apply
+           #_(fn [arg-map]
+             (let [cmd-txtarea (. js/document getElementById  "command-window")]
+               (println "CLEARING WINDOW!!")
+               (set! (. cmd-txtarea -value) "")
+               (swap! mui-state assoc :command-buffer "")))
+           #_{}
+
+           (get-in @mui-state [:query :fn])
+           (get-in @mui-state [:query :args]))))))
+
+
 (defn load-next-arg []
   (let [query-args (get-in @mui-state [:query :args])
         args-to-get (filter (fn [[arg arg-data]]
                               (nil? (:val arg-data))) query-args)
-        first-arg (when args-to-get (first args-to-get))]
-    (swap! mui-state assoc :current-arg first-arg)
-    (println-fld "command-window" (str "\n" (last first-arg)))))
+        [arg arg-data] (first args-to-get)]
+    (swap! mui-state assoc :current-arg [arg arg-data])
+    (println-fld "command-window" (str "\n" (:prompt arg-data)))))
 
 
 (defn mui-gui [app-cfg]
@@ -81,13 +112,11 @@
                             (let [k (.-key event)
                                   mui-cmd-map-including-app-cmds
                                   (merge mui-cmd-map (:app-cmds app-cfg))
-                                  mui-cmd (mui-cmd-map-including-app-cmds k)  #_(get-in mui-cmd-map-including-app-cmds [k :fn])
+                                  mui-cmd (mui-cmd-map-including-app-cmds k)
                                   cmd-txtarea (. js/document getElementById  "command-window")
                                   keycode (.-keyCode event)
                                   key (.-key event)]
                               (take-ticket!)
-                              #_(println "mui/core - CMDS2: " cmd-txtarea)
-                              ;(pprint app-cfg)
                               (println (repeat 30 "="))
                               (println "CMDS: ")
                               (pprint mui-cmd-map-including-app-cmds)
@@ -99,25 +128,13 @@
                                        (.-ctrlKey event)
                                        (.-shiftKey event)
                                        (.-metaKey event))
-                              #_(println "Textarea properties: " (js/jQuery "#command-window"))
-                              #_(println "Textarea selectionStart: "
-                                         (. cmd-txtarea -selectionStart))
-                              #_(set! (.. cmd-txtarea -selectionEnd) 4)
-                              #_(set! (.. cmd-txtarea -selectionStart) 4)
                               (case (:mode @mui-state)
                                 :normal (when mui-cmd
                                           (println "Command Entered: " k)
                                           #_(apply mui-cmd [{}])
                                           (set-mode :query mui-cmd)
-                                          (load-next-arg))
-                                :query (let [query-args (get-in @mui-state [:query :args])
-                                             args-to-get (filter (fn [[arg arg-data]]
-                                                                        (nil? (:val arg-data)) ) query-args)]
-                                         (when args-to-get
-                                           (swap! mui-state assoc :current-arg (first args-to-get)))
-
-
-                                         ))
+                                          (load-prompts cmd-txtarea))
+                                :query nil #_(load-prompts))
 
                               #_(swap! mui-state assoc :command-buffer
                                        (-> event .-target .-value))))]
@@ -125,9 +142,12 @@
     [:div
      [:textarea  (merge (:command-window app-cfg)
                         {:value (:command-buffer @mui-state)
-                                        ;:on-key-press (fn [event] (println (.-key event)))
+                                        ;:on-key-press (fn [event] (println (.-key event)) true)
                          :on-key-up keystroke-handler
-                         ;:on-key-down keystroke-handler
+                         ;:on-key-down
+                         #_(fn [event]
+                                        (when (= (.-key event) "D") (.preventDefault event))
+                                        true)
                          :on-change (fn [event]
                                       (println ":on-change")
                                       (take-ticket!)
