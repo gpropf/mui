@@ -28,6 +28,18 @@
                           :query {}}))
 
 
+
+
+(defn command-buffer-clear []
+  (swap! mui-state assoc :command-buffer ""))
+
+
+(defn command-buffer-append [text]
+  (swap! mui-state update :command-buffer str text))
+
+
+
+
 (defn append-to-field
   [field text]
   (let [field-obj (. js/document getElementById field)
@@ -45,7 +57,7 @@
               (let [cmd-txtarea (. js/document getElementById  "command-window")]
                 (println "CLEARING WINDOW!!")
                 (set! (. cmd-txtarea -value) "")
-                (swap! mui-state assoc :command-buffer "")))
+                (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
         :args {}}})
 
 
@@ -95,7 +107,8 @@
            #_{}
 
            (get-in @mui-state [:query :fn])
-           (get-in @mui-state [:query :args]))))))
+           (get-in @mui-state [:query :args]))
+          (set-mode :normal {})))))
 
 
 (defn load-next-arg []
@@ -141,17 +154,17 @@
 
     [:div
      [:textarea  (merge (:command-window app-cfg)
-                        {:value (:command-buffer @mui-state)
+                        {;:value (:command-buffer @mui-state)
                                         ;:on-key-press (fn [event] (println (.-key event)) true)
                          :on-key-up keystroke-handler
-                         ;:on-key-down
+                         :on-key-down (fn [event] (command-buffer-append (.-key event)))
                          #_(fn [event]
                                         (when (= (.-key event) "D") (.preventDefault event))
                                         true)
                          :on-change (fn [event]
                                       (println ":on-change")
                                       (take-ticket!)
-                                      (swap! mui-state assoc :command-buffer
+                                      #_(swap! mui-state assoc :command-buffer
                                              (-> event .-target .-value)))})]
 
      [:div "Status Readout2"]
