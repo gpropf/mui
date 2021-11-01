@@ -27,8 +27,11 @@
                           :mode :normal
                           :query {}}))
 
+(def mui-cfg {:command-window-prompt ":> "})
 
 
+(def conversion-fn-map {:int js/parseInt
+                        :float js/parseFloat})
 
 (defn command-buffer-clear []
   (swap! mui-state assoc :command-buffer ""))
@@ -65,7 +68,7 @@
 
 (def tickets (atom 0))
 
-(defn take-ticket! []
+#_(defn take-ticket! []
   (let [ticket-num @tickets]
     (println "Ticket #" ticket-num " taken.")
     (swap! tickets inc)
@@ -92,26 +95,20 @@
         args-to-get (filter (fn [[arg arg-data]]
                               (nil? (:val arg-data))) query-args)
         [arg arg-data] (first args-to-get)]
-    (swap! mui-state assoc :current-arg [arg arg-data])
-
-    (if arg-data (present-prompt arg-data textarea-element)
-        (do
-          (println "Mui-STATE: " @mui-state "FN: " (get-in @mui-state [:query :fn]) "\nARGS: " (get-in @mui-state [:query :args]))
-          #_(set-mode :normal {})
-          (apply
-           #_(fn [arg-map]
-             (let [cmd-txtarea (. js/document getElementById  "command-window")]
-               (println "CLEARING WINDOW!!")
-               (set! (. cmd-txtarea -value) "")
-               (swap! mui-state assoc :command-buffer "")))
-           #_{}
-
-           (get-in @mui-state [:query :fn])
-           (get-in @mui-state [:query :args]))
-          (set-mode :normal {})))))
+    (swap! mui-state assoc :current-arg arg)
+    (if arg-data
+      (do (println "ARG-DATA FOUND: " arg-data)
+          (present-prompt arg-data textarea-element))
+      (let [command-fn (get-in @mui-state [:query :fn])
+            args (get-in @mui-state [:query :args])]
+        (println "Mui-STATE: " @mui-state
+                 "FN: " command-fn
+                 "\nARGS: " args)
+        (command-fn args)
+        (set-mode :normal {})))))
 
 
-(defn load-next-arg []
+#_(defn load-next-arg []
   (let [query-args (get-in @mui-state [:query :args])
         args-to-get (filter (fn [[arg arg-data]]
                               (nil? (:val arg-data))) query-args)
@@ -129,11 +126,11 @@
                                   cmd-txtarea (. js/document getElementById  "command-window")
                                   keycode (.-keyCode event)
                                   key (.-key event)]
-                              (take-ticket!)
+                              #_(take-ticket!)
                               (println (repeat 30 "="))
-                              (println "CMDS: ")
-                              (pprint mui-cmd-map-including-app-cmds)
-                              (println "KEY: " key
+                              ;(println "CMDS: ")
+                              ;(pprint mui-cmd-map-including-app-cmds)
+                              #_(println "KEY: " key
                                        ", CODE" (.-code event)
                                        ", KEYCODE" keycode
                                        ", WHICH" (.-which event)
@@ -143,11 +140,23 @@
                                        (.-metaKey event))
                               (case (:mode @mui-state)
                                 :normal (when mui-cmd
-                                          (println "Command Entered: " k)
-                                          #_(apply mui-cmd [{}])
+                                          (println "NORMAL MODE, Command Entered: " k)
                                           (set-mode :query mui-cmd)
                                           (load-prompts cmd-txtarea))
-                                :query nil #_(load-prompts))
+                                :query (case keycode
+                                         13 (let [current-arg (:current-arg @mui-state)
+                                                  arg-data
+                                                  (get-in @mui-state [:query :args current-arg])
+                                                  arg-type (:type arg-data)
+                                                  ;_ (println "ARG TYPE is " arg-type)
+                                                  conversion-fn (conversion-fn-map arg-type)
+                                                  arg-val (conversion-fn (:command-buffer @mui-state))]
+                                              (swap! mui-state assoc-in
+                                                     [:query :args current-arg :val] arg-val)
+                                              (command-buffer-clear)
+                                              (load-prompts cmd-txtarea))
+
+                                         (command-buffer-append (char keycode))))
 
                               #_(swap! mui-state assoc :command-buffer
                                        (-> event .-target .-value))))]
@@ -157,15 +166,15 @@
                         {;:value (:command-buffer @mui-state)
                                         ;:on-key-press (fn [event] (println (.-key event)) true)
                          :on-key-up keystroke-handler
-                         :on-key-down (fn [event] (command-buffer-append (.-key event)))
+                         ;:on-key-down (fn [event] (command-buffer-append (.-key event)))
                          #_(fn [event]
-                                        (when (= (.-key event) "D") (.preventDefault event))
-                                        true)
+                             (when (= (.-key event) "D") (.preventDefault event))
+                             true)
                          :on-change (fn [event]
                                       (println ":on-change")
-                                      (take-ticket!)
+                                      #_(take-ticket!)
                                       #_(swap! mui-state assoc :command-buffer
-                                             (-> event .-target .-value)))})]
+                                               (-> event .-target .-value)))})]
 
      [:div "Status Readout2"]
      [:div "Structure View" ;maybe status bar or something
