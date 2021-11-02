@@ -34,7 +34,7 @@
                         :float js/parseFloat})
 
 (defn command-buffer-clear []
-  (swap! mui-state assoc :command-buffer ""))
+  (swap! mui-state assoc :command-buffer "" :prompt-end 0))
 
 
 (defn command-buffer-append [text]
@@ -51,7 +51,8 @@
 
 
 (defn println-fld [field text]
-  (append-to-field field (str text "\n")))
+  (append-to-field field (str "\n" text)))
+
 
 
 (def mui-cmd-map
@@ -86,7 +87,7 @@
 
 
 (defn present-prompt [arg-data textarea-element]
-  (println-fld "command-window" (str "\n" (:prompt arg-data)))
+  (println-fld "command-window" (str (:prompt arg-data) " "))
   (swap! mui-state assoc :prompt-end (.-selectionStart textarea-element)))
 
 
@@ -127,17 +128,17 @@
                                   keycode (.-keyCode event)
                                   key (.-key event)]
                               #_(take-ticket!)
-                              (println (repeat 30 "="))
+                              (println "Keystroke recorded... " keycode)
                               ;(println "CMDS: ")
                               ;(pprint mui-cmd-map-including-app-cmds)
                               #_(println "KEY: " key
-                                       ", CODE" (.-code event)
-                                       ", KEYCODE" keycode
-                                       ", WHICH" (.-which event)
-                                       ", Alt, Cntr, Shift, Meta" (.-altKey event)
-                                       (.-ctrlKey event)
-                                       (.-shiftKey event)
-                                       (.-metaKey event))
+                                         ", CODE" (.-code event)
+                                         ", KEYCODE" keycode
+                                         ", WHICH" (.-which event)
+                                         ", Alt, Cntr, Shift, Meta" (.-altKey event)
+                                         (.-ctrlKey event)
+                                         (.-shiftKey event)
+                                         (.-metaKey event))
                               (case (:mode @mui-state)
                                 :normal (when mui-cmd
                                           (println "NORMAL MODE, Command Entered: " k)
@@ -150,13 +151,15 @@
                                                   arg-type (:type arg-data)
                                                   ;_ (println "ARG TYPE is " arg-type)
                                                   conversion-fn (conversion-fn-map arg-type)
-                                                  arg-val (conversion-fn (:command-buffer @mui-state))]
+                                                  arg-val (conversion-fn
+                                                           (subs (. cmd-txtarea -value)
+                                                                 (:prompt-end @mui-state)))]
                                               (swap! mui-state assoc-in
                                                      [:query :args current-arg :val] arg-val)
                                               (command-buffer-clear)
                                               (load-prompts cmd-txtarea))
 
-                                         (command-buffer-append (char keycode))))
+                                         #_(command-buffer-append (char keycode))))
 
                               #_(swap! mui-state assoc :command-buffer
                                        (-> event .-target .-value))))]
@@ -166,7 +169,24 @@
                         {;:value (:command-buffer @mui-state)
                                         ;:on-key-press (fn [event] (println (.-key event)) true)
                          :on-key-up keystroke-handler
-                         ;:on-key-down (fn [event] (command-buffer-append (.-key event)))
+                         :on-key-down (fn [event]
+                                        (let [keycode (.-keyCode event)
+                                              cmd-txtarea
+                                              (. js/document getElementById  "command-window")
+                                              prompt-end-pos (:prompt-end @mui-state)
+                                              cursor-pos (inc (.-selectionStart cmd-txtarea))
+                                              selection-end (.-selectionEnd cmd-txtarea)
+                                              _ (println "Cursor-pos: " cursor-pos
+                                                         ", prompt-end-pos: " prompt-end-pos
+                                                         ", selectionEnd: " selection-end)]
+                                          (if (< cursor-pos prompt-end-pos)
+                                            (do
+                                              (println "UNDERRUN: " cursor-pos ", " prompt-end-pos)
+                                              (.preventDefault event)
+                                              (set! (. cmd-txtarea -selectionStart) (inc prompt-end-pos))
+                                              true)
+                                            true)))
+
                          #_(fn [event]
                              (when (= (.-key event) "D") (.preventDefault event))
                              true)
