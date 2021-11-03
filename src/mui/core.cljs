@@ -118,6 +118,50 @@
     (println-fld "command-window" (str "\n" (:prompt arg-data)))))
 
 
+(defn set-cursor-pos [input-element offset]
+  (let [current-pos (.-selectionStart input-element)]
+    (set! (.-selectionStart input-element) (+ current-pos offset))))
+
+(defn get-cursor-pos [input-element]
+  (.-selectionStart input-element))
+
+
+(defn filter-keystrokes [event]
+  (let [keycode (.-keyCode event)
+        cmd-txtarea
+        (. js/document getElementById  "command-window")
+        prompt-end-pos (:prompt-end @mui-state)
+        cursor-pos (.-selectionStart cmd-txtarea)
+        selection-end (.-selectionEnd cmd-txtarea)
+        _ (println "Cursor-pos: " cursor-pos
+                   ", prompt-end-pos: " prompt-end-pos
+                   ", selectionEnd: " selection-end)]
+    (println ":on-key-down, cursor is at "
+             (get-cursor-pos cmd-txtarea))
+    (case keycode
+      (8 37) (when (< cursor-pos (inc prompt-end-pos))
+               (do (println "Trying to stop cursor from going back more.")
+                   (.preventDefault event)))
+      (38 40) (.preventDefault event)
+      "default")))
+
+
+(defn print-key-from-event [event]
+  (let [k (.-key event)
+        ;cmd-txtarea (. js/document getElementById  "command-window")
+        keycode (.-keyCode event)
+        key (.-key event)]
+    (println "KEY: " key
+             ", CODE" (.-code event)
+             ", KEYCODE" keycode
+             ", WHICH" (.-which event)
+             ", Alt, Cntr, Shift, Meta" (.-altKey event)
+             (.-ctrlKey event)
+             (.-shiftKey event)
+             (.-metaKey event))))
+
+
+
 (defn mui-gui [app-cfg]
   (let [keystroke-handler (fn [event]
                             (let [k (.-key event)
@@ -127,18 +171,9 @@
                                   cmd-txtarea (. js/document getElementById  "command-window")
                                   keycode (.-keyCode event)
                                   key (.-key event)]
-                              #_(take-ticket!)
                               (println "Keystroke recorded... " keycode)
-                              ;(println "CMDS: ")
-                              ;(pprint mui-cmd-map-including-app-cmds)
-                              #_(println "KEY: " key
-                                         ", CODE" (.-code event)
-                                         ", KEYCODE" keycode
-                                         ", WHICH" (.-which event)
-                                         ", Alt, Cntr, Shift, Meta" (.-altKey event)
-                                         (.-ctrlKey event)
-                                         (.-shiftKey event)
-                                         (.-metaKey event))
+                              (println ":on-key-up, cursor is at "
+                                       (get-cursor-pos cmd-txtarea))
                               (case (:mode @mui-state)
                                 :normal (when mui-cmd
                                           (println "NORMAL MODE, Command Entered: " k)
@@ -149,7 +184,6 @@
                                                   arg-data
                                                   (get-in @mui-state [:query :args current-arg])
                                                   arg-type (:type arg-data)
-                                                  ;_ (println "ARG TYPE is " arg-type)
                                                   conversion-fn (conversion-fn-map arg-type)
                                                   arg-val (conversion-fn
                                                            (subs (. cmd-txtarea -value)
@@ -158,44 +192,16 @@
                                                      [:query :args current-arg :val] arg-val)
                                               (command-buffer-clear)
                                               (load-prompts cmd-txtarea))
-
-                                         #_(command-buffer-append (char keycode))))
-
-                              #_(swap! mui-state assoc :command-buffer
-                                       (-> event .-target .-value))))]
-
+                                         "default"))))]
     [:div
      [:textarea  (merge (:command-window app-cfg)
-                        {;:value (:command-buffer @mui-state)
-                                        ;:on-key-press (fn [event] (println (.-key event)) true)
-                         :on-key-up keystroke-handler
-                         :on-key-down (fn [event]
-                                        (let [keycode (.-keyCode event)
-                                              cmd-txtarea
-                                              (. js/document getElementById  "command-window")
-                                              prompt-end-pos (:prompt-end @mui-state)
-                                              cursor-pos (inc (.-selectionStart cmd-txtarea))
-                                              selection-end (.-selectionEnd cmd-txtarea)
-                                              _ (println "Cursor-pos: " cursor-pos
-                                                         ", prompt-end-pos: " prompt-end-pos
-                                                         ", selectionEnd: " selection-end)]
-                                          (if (< cursor-pos prompt-end-pos)
-                                            (do
-                                              (println "UNDERRUN: " cursor-pos ", " prompt-end-pos)
-                                              (.preventDefault event)
-                                              (set! (. cmd-txtarea -selectionStart) (inc prompt-end-pos))
-                                              true)
-                                            true)))
-
-                         #_(fn [event]
-                             (when (= (.-key event) "D") (.preventDefault event))
-                             true)
+                        {:on-key-up keystroke-handler
+                         :on-key-down filter-keystrokes
                          :on-change (fn [event]
-                                      (println ":on-change")
-                                      #_(take-ticket!)
-                                      #_(swap! mui-state assoc :command-buffer
-                                               (-> event .-target .-value)))})]
-
+                                      (let [cmd-txtarea (. js/document getElementById
+                                                           "command-window")]
+                                        (println ":on-change, cursor is at "
+                                                 (get-cursor-pos cmd-txtarea))))})]
      [:div "Status Readout2"]
      [:div "Structure View" ;maybe status bar or something
       ]]))
