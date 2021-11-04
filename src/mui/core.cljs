@@ -57,7 +57,8 @@
 
 (def mui-cmd-map
   ;"Basic Mui commands common to all applications, even those besides Rasto."
-  {"c" {:fn (fn [arg-map]
+  {113 ; 'F2'
+   {:fn (fn [arg-map]
               (let [cmd-txtarea (. js/document getElementById  "command-window")]
                 (println "CLEARING WINDOW!!")
                 (set! (. cmd-txtarea -value) "")
@@ -164,19 +165,18 @@
 
 (defn mui-gui [app-cfg]
   (let [keystroke-handler (fn [event]
-                            (let [k (.-key event)
-                                  mui-cmd-map-including-app-cmds
+                            (let [mui-cmd-map-including-app-cmds
                                   (merge mui-cmd-map (:app-cmds app-cfg))
-                                  mui-cmd (mui-cmd-map-including-app-cmds k)
                                   cmd-txtarea (. js/document getElementById  "command-window")
                                   keycode (.-keyCode event)
+                                  mui-cmd (mui-cmd-map-including-app-cmds keycode)
                                   key (.-key event)]
                               (println "Keystroke recorded... " keycode)
                               (println ":on-key-up, cursor is at "
                                        (get-cursor-pos cmd-txtarea))
                               (case (:mode @mui-state)
                                 :normal (when mui-cmd
-                                          (println "NORMAL MODE, Command Entered: " k)
+                                          (println "NORMAL MODE, Command Entered: " keycode)
                                           (set-mode :query mui-cmd)
                                           (load-prompts cmd-txtarea))
                                 :query (case keycode
@@ -196,7 +196,7 @@
     [:div
 
      [:textarea  (merge (:command-window app-cfg)
-                        {:on-load #(swap! mui-state assoc :implicits (:implicits app-cfg))
+                        {;:on-load #(swap! mui-state assoc :implicits (:implicits app-cfg))
                          :on-key-up keystroke-handler
                          :on-key-down filter-keystrokes
                          :on-change (fn [event]
@@ -206,6 +206,6 @@
                                                  (get-cursor-pos cmd-txtarea))
                                         (println "IMPLICITS: " '(:implicits app-cfg))
                                         (swap! mui-state assoc :implicits (:implicits app-cfg))))})]
-     [:div "Status Readout2"]
+     [:div "Status Readout (implicit keys in state hash): " (keys (:implicits @mui-state))]
      [:div "Structure View" ;maybe status bar or something
       ]]))
