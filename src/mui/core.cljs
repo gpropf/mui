@@ -194,14 +194,18 @@
                                               (load-prompts cmd-txtarea))
                                          "default"))))]
     [:div
+
      [:textarea  (merge (:command-window app-cfg)
-                        {:on-key-up keystroke-handler
+                        {:on-load #(swap! mui-state assoc :implicits (:implicits app-cfg))
+                         :on-key-up keystroke-handler
                          :on-key-down filter-keystrokes
                          :on-change (fn [event]
                                       (let [cmd-txtarea (. js/document getElementById
                                                            "command-window")]
                                         (println ":on-change, cursor is at "
-                                                 (get-cursor-pos cmd-txtarea))))})]
+                                                 (get-cursor-pos cmd-txtarea))
+                                        (println "IMPLICITS: " '(:implicits app-cfg))
+                                        (swap! mui-state assoc :implicits (:implicits app-cfg))))})]
      [:div "Status Readout2"]
      [:div "Structure View" ;maybe status bar or something
       ]]))
