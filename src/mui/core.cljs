@@ -29,6 +29,7 @@
 
 (def mui-cfg {:command-window-prompt ":> "})
 
+(def command-history (atom '()))
 
 (def conversion-fn-map {:int js/parseInt
                         :float js/parseFloat})
@@ -66,7 +67,19 @@
         :args {}}})
 
 
+(defn prepare-query-for-history [query]
+  (let [query' (dissoc query :fn)
+        args (:args query')
+        args' (into {} (map (fn [[arg arg-data]]
+                              [arg (:val arg-data)]) args))]
 
+    (assoc query' :args args')))
+
+
+
+(defn add-to-history [args]
+  (swap! command-history conj (prepare-query-for-history args))
+  )
 
 (def tickets (atom 0))
 
@@ -77,14 +90,18 @@
     ))
 
 
-(defn set-mode [mode query-map]
+(defn set-mode [mode query-map command-key]
   (let []
     (println "SET-MODE with query: " query-map ", mode: " mode)
     (swap! mui-state assoc
            :mode mode
-           :query query-map)
+           :query (assoc query-map :command-key command-key))
     )
   )
+
+
+
+
 
 
 (defn present-prompt [arg-data textarea-element]
@@ -106,8 +123,11 @@
         (println "Mui-STATE: " @mui-state
                  "FN: " command-fn
                  "\nARGS: " args)
+        (add-to-history (:query @mui-state))
         (command-fn args)
-        (set-mode :normal {})))))
+        ; ^^^ This is important! ^^^
+        ; This is where the commands are run with their arguments.
+        (set-mode :normal {} nil)))))
 
 
 #_(defn load-next-arg []
@@ -177,7 +197,7 @@
                               (case (:mode @mui-state)
                                 :normal (when mui-cmd
                                           (println "NORMAL MODE, Command Entered: " keycode)
-                                          (set-mode :query mui-cmd)
+                                          (set-mode :query mui-cmd keycode)
                                           (load-prompts cmd-txtarea))
                                 :query (case keycode
                                          13 (let [current-arg (:current-arg @mui-state)
