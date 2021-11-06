@@ -171,15 +171,21 @@
   (let [k (.-key event)
         ;cmd-txtarea (. js/document getElementById  "command-window")
         keycode (.-keyCode event)
-        key (.-key event)]
+        key (.-key event)
+        alt-key (.-altKey event)
+        ctrl-key (.-ctrlKey event)
+        shift-key (.-shiftKey event)
+        meta-key (.-metaKey event)
+        keycode-and-flags [keycode alt-key ctrl-key shift-key meta-key]]
     (println "KEY: " key
              ", CODE" (.-code event)
              ", KEYCODE" keycode
              ", WHICH" (.-which event)
-             ", Alt, Cntr, Shift, Meta" (.-altKey event)
-             (.-ctrlKey event)
-             (.-shiftKey event)
-             (.-metaKey event))))
+             ", Alt, Cntr, Shift, Meta"
+             keycode-and-flags)
+keycode-and-flags
+    )
+  )
 
 
 
@@ -190,31 +196,41 @@
                                   cmd-txtarea (. js/document getElementById  "command-window")
                                   keycode (.-keyCode event)
                                   mui-cmd (mui-cmd-map-including-app-cmds keycode)
-                                  key (.-key event)]
-                              (println "Keystroke recorded... " keycode)
+                                  key (.-key event)
+                                  keycode-and-flags (print-key-from-event event)]
                               (println ":on-key-up, cursor is at "
                                        (get-cursor-pos cmd-txtarea))
+
                               (case (:mode @mui-state)
-                                :normal (when mui-cmd
-                                          (println "NORMAL MODE, Command Entered: " keycode)
-                                          (set-mode :query mui-cmd keycode)
-                                          (load-prompts cmd-txtarea))
-                                :query (case keycode
-                                         13 (let [current-arg (:current-arg @mui-state)
-                                                  arg-data
-                                                  (get-in @mui-state [:query :args current-arg])
-                                                  arg-type (:type arg-data)
-                                                  conversion-fn (conversion-fn-map arg-type)
-                                                  arg-val (conversion-fn
-                                                           (subs (. cmd-txtarea -value)
-                                                                 (:prompt-end @mui-state)))]
-                                              (swap! mui-state assoc-in
-                                                     [:query :args current-arg :val] arg-val)
-                                              (command-buffer-clear)
-                                              (load-prompts cmd-txtarea))
+                                :normal (do
+                                          (case keycode-and-flags
+                                            [67, false, true, false, false]
+                                            (let [_ (println "CNTRL-C")])
+                                            (when mui-cmd
+                                              (println "NORMAL MODE, Command Entered: " keycode)
+                                              (set-mode :query mui-cmd keycode)
+                                              (load-prompts cmd-txtarea))))
+                                :query (case keycode-and-flags
+                                         [13, false, false, false, false]
+                                         (let [current-arg (:current-arg @mui-state)
+                                               arg-data
+                                               (get-in @mui-state [:query :args current-arg])
+                                               arg-type (:type arg-data)
+                                               conversion-fn (conversion-fn-map arg-type)
+                                               arg-val (conversion-fn
+                                                        (subs (. cmd-txtarea -value)
+                                                              (:prompt-end @mui-state)))]
+                                           (swap! mui-state assoc-in
+                                                  [:query :args current-arg :val] arg-val)
+                                           (command-buffer-clear)
+                                           (load-prompts cmd-txtarea))
+                                         [67, false, true, false, false]
+                                         (let []
+                                           (println "CNTRL-C - interrupting command.")
+                                           (println-fld cmd-txtarea "-----\n")
+                                           (set-mode :normal nil nil))
                                          "default"))))]
     [:div
-
      [:textarea  (merge (:command-window app-cfg)
                         {;:on-load #(swap! mui-state assoc :implicits (:implicits app-cfg))
                          :on-key-up keystroke-handler
