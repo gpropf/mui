@@ -52,6 +52,7 @@
 
 
 (defn println-fld [field text]
+  (println "CALLED: println-fld with: " text)
   (append-to-field field (str "\n" text)))
 
 
@@ -92,12 +93,10 @@
 
 (defn set-mode [mode query-map command-key]
   (let []
-    (println "SET-MODE with query: " query-map ", mode: " mode)
+    (println "CALLED: set-mode (query, mode, command-key): " [query-map mode command-key])
     (swap! mui-state assoc
            :mode mode
-           :query (assoc query-map :command-key command-key))
-    )
-  )
+           :query (assoc query-map :command-key command-key))))
 
 
 
@@ -183,7 +182,7 @@
              ", WHICH" (.-which event)
              ", Alt, Cntr, Shift, Meta"
              keycode-and-flags)
-keycode-and-flags
+    keycode-and-flags
     )
   )
 
@@ -227,7 +226,7 @@ keycode-and-flags
                                          [67, false, true, false, false]
                                          (let []
                                            (println "CNTRL-C - interrupting command.")
-                                           (println-fld cmd-txtarea "-----\n")
+                                           (println-fld cmd-txtarea "-- INTERRUPT! --\n")
                                            (set-mode :normal nil nil))
                                          "default"))))]
     [:div
