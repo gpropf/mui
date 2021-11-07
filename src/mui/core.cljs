@@ -225,9 +225,9 @@
                                            (load-prompts cmd-txtarea))
                                          [67, false, true, false, false]
                                          (let []
+                                           (set-mode :normal nil nil)
                                            (println "CNTRL-C - interrupting command.")
-                                           (println-fld cmd-txtarea "-- INTERRUPT! --\n")
-                                           (set-mode :normal nil nil))
+                                           (println-fld "command-window" "-- INTERRUPT! --\n"))
                                          "default"))))]
     [:div
      [:textarea  (merge (:command-window app-cfg)
