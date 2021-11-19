@@ -19,15 +19,33 @@
    [reagent.dom :as rd]
    [clojure.string :as str]
    [reagent.core :as reagent :refer [atom]]
+   [clojure.set :as set]
    [cljs.pprint :as pp :refer [pprint]]
    [rasto.util :as rut]))
+
+
+(def letter-to-ascii-map {:b  66 :c  67 :F2  113 :Enter  13})
+
+                                        ; (.charCodeAt \b 0)
+
+(def ascii-to-letter-map (set/map-invert letter-to-ascii-map))
 
 
 (defonce mui-state (atom {:command-buffer ""
                           :mode :normal
                           :query {}}))
 
-(def mui-cfg {:command-window-prompt ":> "})
+(def mui-default-cfg {:command-window-prompt ":> "
+                      :command-window {}
+                      :history-window {:style {:height "auto"
+                                               :margin-bottom "5px"
+                                               :float "right"}
+                                       :id "history-window"
+                                       :rows "8"
+                                       :cols "60"
+                                       :class ""
+                                             ;:default-value ""
+                                       }})
 
 (def command-history (atom '()))
 
@@ -79,8 +97,8 @@
 
 
 (defn add-to-history [args]
-  (swap! command-history conj (prepare-query-for-history args))
-  )
+  (println "Trying to add " args " to hist")
+  (swap! command-history conj (prepare-query-for-history args)))
 
 (def tickets (atom 0))
 
@@ -99,7 +117,9 @@
            :query (assoc query-map :command-key command-key))))
 
 
-
+(defn prettify-history [history-list]
+  (reduce #(str %1 %2) ""
+          (reverse (map (fn [history-item] (str history-item "\n")) history-list))))
 
 
 
@@ -109,6 +129,7 @@
 
 
 (defn load-prompts [textarea-element]
+  (println "LOAD PROMPTS CALLED !!!!!!!!!!!!!! Trying to add " " to hist")
   (let [query-args (get-in @mui-state [:query :args])
         args-to-get (filter (fn [[arg arg-data]]
                               (nil? (:val arg-data))) query-args)
@@ -119,7 +140,7 @@
           (present-prompt arg-data textarea-element))
       (let [command-fn (get-in @mui-state [:query :fn])
             args (get-in @mui-state [:query :args])]
-        (println "Mui-STATE: " @mui-state
+        (println "Mui-STATE: redacted " ;; @mui-state
                  "FN: " command-fn
                  "\nARGS: " args)
         (add-to-history (:query @mui-state))
@@ -240,7 +261,9 @@
                                         (println ":on-change, cursor is at "
                                                  (get-cursor-pos cmd-txtarea))
                                         (println "IMPLICITS: " '(:implicits app-cfg))
-                                        (swap! mui-state assoc :implicits (:implicits app-cfg))))})]
-     [:div "Status Readout (implicit keys in state hash): " (keys (:implicits @mui-state))]
-     [:div "Structure View" ;maybe status bar or something
-      ]]))
+                                        (swap! mui-state assoc
+                                               :implicits (:implicits app-cfg))))})]
+     [:div "Command History: "
+      [:textarea (merge (:history-window mui-default-cfg)
+                        {:value (prettify-history @command-history)})]]
+     [:div "Structure View" @command-history]]))
