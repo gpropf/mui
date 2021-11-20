@@ -79,11 +79,12 @@
   ;"Basic Mui commands common to all applications, even those besides Rasto."
   {:F2
    {:fn (fn [arg-map]
-              (let [cmd-txtarea (. js/document getElementById  "command-window")]
-                (println "CLEARING WINDOW!!")
-                (set! (. cmd-txtarea -value) "")
-                (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
-        :args {}}})
+          (let [cmd-txtarea (. js/document getElementById  "command-window")]
+            (println "CLEARING WINDOW!!")
+            (set! (. cmd-txtarea -value) "")
+            (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
+    :args {}
+    :help {:msg "F2 : Clear command window."}}})
 
 
 (defn prepare-query-for-history [query]
@@ -210,14 +211,22 @@
   )
 
 
+(defn prettify-help [mui-cmd-map-including-app-cmds]
+  (apply str (map (fn [[key-keyword cmd-map]]
+         (str (get-in cmd-map [:help :msg]) "\n")
+         ) mui-cmd-map-including-app-cmds))
+
+  )
+
 
 (defn mui-gui [app-cfg]
-  (let [keystroke-handler (fn [event]
-                            (let [mui-cmd-map-including-app-cmds
-                                  (merge mui-cmd-map (:app-cmds app-cfg))
-                                  cmd-txtarea (. js/document getElementById  "command-window")
-                                  keycode (.-keyCode event)
 
+  (let [mui-cmd-map-including-app-cmds
+        (merge mui-cmd-map (:app-cmds app-cfg))
+        keystroke-handler (fn [event]
+                            (let [cmd-txtarea (. js/document getElementById  "command-window")
+                                  keycode (.-keyCode event)
+                                  _ (println "mui-cmd-map-including-app-cmds:" mui-cmd-map-including-app-cmds)
                                   key (.-key event)
                                   keycode-and-flags (print-key-from-event event)
                                   key-keyword (first keycode-and-flags)
@@ -254,8 +263,8 @@
                                            (println "CNTRL-C - interrupting command.")
                                            (println-fld "command-window" "-- INTERRUPT! --\n"))
                                          "default"))))]
-    [:div {:style {:width "50%"}}
-     [:div
+    [:div
+     [:div {:style {:width "45%" :margin "auto"}}
       [:label {:for "command-window"} "Command Entry: "]
       [:textarea  (merge (:command-window app-cfg)
                          {;:on-load #(swap! mui-state assoc :implicits (:implicits app-cfg))
@@ -269,7 +278,11 @@
                                          (println "IMPLICITS: " '(:implicits app-cfg))
                                          (swap! mui-state assoc
                                                 :implicits (:implicits app-cfg))))})]]
-     [:div
+     [:div {:style {:width "45%" :margin "auto"}}
       [:label {:for "history-window"} "Command History: "]
       [:textarea (merge (:history-window mui-default-cfg)
-                        {:value (prettify-history @command-history)})]]]))
+                        {:value (prettify-history @command-history)})]]
+     [:div {:style {:width "45%" :margin "auto"}}
+      [:label {:for "help-window"} "Help: "]
+      [:textarea (merge (:history-window mui-default-cfg)
+                        {:value (prettify-help mui-cmd-map-including-app-cmds)})]]]))
