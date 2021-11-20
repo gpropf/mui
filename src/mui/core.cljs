@@ -77,7 +77,7 @@
 
 (def mui-cmd-map
   ;"Basic Mui commands common to all applications, even those besides Rasto."
-  {113 ; 'F2'
+  {:F2
    {:fn (fn [arg-map]
               (let [cmd-txtarea (. js/document getElementById  "command-window")]
                 (println "CLEARING WINDOW!!")
@@ -109,12 +109,12 @@
     ))
 
 
-(defn set-mode [mode query-map command-key]
+(defn set-mode [mode query-map key-keyword]
   (let []
-    (println "CALLED: set-mode (query, mode, command-key): " [query-map mode command-key])
+    (println "CALLED: set-mode (query, mode, command-key): " [query-map mode key-keyword])
     (swap! mui-state assoc
            :mode mode
-           :query (assoc query-map :command-key command-key))))
+           :query (assoc query-map :command-key key-keyword))))
 
 
 (defn prettify-history [history-list]
@@ -191,18 +191,20 @@
   (let [k (.-key event)
         ;cmd-txtarea (. js/document getElementById  "command-window")
         keycode (.-keyCode event)
+        key-keyword (ascii-to-letter-map keycode)
         key (.-key event)
         alt-key (.-altKey event)
         ctrl-key (.-ctrlKey event)
         shift-key (.-shiftKey event)
         meta-key (.-metaKey event)
-        keycode-and-flags [keycode alt-key ctrl-key shift-key meta-key]]
-    (println "KEY: " key
+        keycode-and-flags [key-keyword alt-key ctrl-key shift-key meta-key]]
+    #_(println "KEY: " key
              ", CODE" (.-code event)
              ", KEYCODE" keycode
              ", WHICH" (.-which event)
-             ", Alt, Cntr, Shift, Meta"
+             ", Alt, Cntr, Shift, Meta :::"
              keycode-and-flags)
+    (println "keycode-and-flags: " keycode-and-flags)
     keycode-and-flags
     )
   )
@@ -215,23 +217,25 @@
                                   (merge mui-cmd-map (:app-cmds app-cfg))
                                   cmd-txtarea (. js/document getElementById  "command-window")
                                   keycode (.-keyCode event)
-                                  mui-cmd (mui-cmd-map-including-app-cmds keycode)
+
                                   key (.-key event)
-                                  keycode-and-flags (print-key-from-event event)]
+                                  keycode-and-flags (print-key-from-event event)
+                                  key-keyword (first keycode-and-flags)
+                                  mui-cmd (mui-cmd-map-including-app-cmds key-keyword)]
                               (println ":on-key-up, cursor is at "
                                        (get-cursor-pos cmd-txtarea))
 
                               (case (:mode @mui-state)
                                 :normal (do
                                           (case keycode-and-flags
-                                            [67, false, true, false, false]
+                                            [:c, false, true, false, false]
                                             (let [_ (println "CNTRL-C")])
                                             (when mui-cmd
                                               (println "NORMAL MODE, Command Entered: " keycode)
-                                              (set-mode :query mui-cmd keycode)
+                                              (set-mode :query mui-cmd key-keyword)
                                               (load-prompts cmd-txtarea))))
                                 :query (case keycode-and-flags
-                                         [13, false, false, false, false]
+                                         [:Enter, false, false, false, false]
                                          (let [current-arg (:current-arg @mui-state)
                                                arg-data
                                                (get-in @mui-state [:query :args current-arg])
@@ -244,26 +248,28 @@
                                                   [:query :args current-arg :val] arg-val)
                                            (command-buffer-clear)
                                            (load-prompts cmd-txtarea))
-                                         [67, false, true, false, false]
+                                         [:c, false, true, false, false]
                                          (let []
                                            (set-mode :normal nil nil)
                                            (println "CNTRL-C - interrupting command.")
                                            (println-fld "command-window" "-- INTERRUPT! --\n"))
                                          "default"))))]
-    [:div
-     [:textarea  (merge (:command-window app-cfg)
-                        {;:on-load #(swap! mui-state assoc :implicits (:implicits app-cfg))
-                         :on-key-up keystroke-handler
-                         :on-key-down filter-keystrokes
-                         :on-change (fn [event]
-                                      (let [cmd-txtarea (. js/document getElementById
-                                                           "command-window")]
-                                        (println ":on-change, cursor is at "
-                                                 (get-cursor-pos cmd-txtarea))
-                                        (println "IMPLICITS: " '(:implicits app-cfg))
-                                        (swap! mui-state assoc
-                                               :implicits (:implicits app-cfg))))})]
-     [:div "Command History: "
+    [:div {:style {:width "50%"}}
+     [:div
+      [:label {:for "command-window"} "Command Entry: "]
+      [:textarea  (merge (:command-window app-cfg)
+                         {;:on-load #(swap! mui-state assoc :implicits (:implicits app-cfg))
+                          :on-key-up keystroke-handler
+                          :on-key-down filter-keystrokes
+                          :on-change (fn [event]
+                                       (let [cmd-txtarea (. js/document getElementById
+                                                            "command-window")]
+                                         (println ":on-change, cursor is at "
+                                                  (get-cursor-pos cmd-txtarea))
+                                         (println "IMPLICITS: " '(:implicits app-cfg))
+                                         (swap! mui-state assoc
+                                                :implicits (:implicits app-cfg))))})]]
+     [:div
+      [:label {:for "history-window"} "Command History: "]
       [:textarea (merge (:history-window mui-default-cfg)
-                        {:value (prettify-history @command-history)})]]
-     [:div "Structure View" @command-history]]))
+                        {:value (prettify-history @command-history)})]]]))
