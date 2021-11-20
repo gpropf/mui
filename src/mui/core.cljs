@@ -24,7 +24,9 @@
    [rasto.util :as rut]))
 
 
-(def letter-to-ascii-map {:b  66 :c  67 :F2  113 :Enter  13})
+(def letter-to-ascii-map {:b  66 :c  67 :F2  113 :Enter  13
+                          :n 78})
+
 
                                         ; (.charCodeAt \b 0)
 
@@ -84,7 +86,15 @@
             (set! (. cmd-txtarea -value) "")
             (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
     :args {}
-    :help {:msg "F2 : Clear command window."}}})
+    :help {:msg "F2 : Clear command window."}}
+   :n
+   {:fn (fn [arg-map]
+          (println "Would create object of type " (arg-map :t)))
+    :help {:msg "n : Create a new object."}
+    :args
+    {:t
+     {:prompt "Choose the type of object to create from the following list by entering the number of your selection:"
+      :type :int}}}})
 
 
 (defn prepare-query-for-history [query]
@@ -281,8 +291,10 @@
      [:div {:style {:width "45%" :margin "auto"}}
       [:label {:for "history-window"} "Command History: "]
       [:textarea (merge (:history-window mui-default-cfg)
-                        {:value (prettify-history @command-history)})]]
+                        {:value (prettify-history @command-history)
+                         :readOnly true})]]
      [:div {:style {:width "45%" :margin "auto"}}
       [:label {:for "help-window"} "Help: "]
       [:textarea (merge (:history-window mui-default-cfg)
-                        {:value (prettify-help mui-cmd-map-including-app-cmds)})]]]))
+                        {:value (prettify-help mui-cmd-map-including-app-cmds)
+                         :readOnly true})]]]))
