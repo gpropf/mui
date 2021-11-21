@@ -96,11 +96,11 @@
             (set! (. cmd-txtarea -value) "")
             (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
     :args {}
-    :help {:msg "F2 : Clear command window."}}
+    :help {:msg "F2\t: Clear command window."}}
    :n
    {:fn (fn [arg-map]
           (println "Would create object of type " (arg-map :t)))
-    :help {:msg "n : Create a new object."}
+    :help {:msg "n\t: Create a new object."}
     :args
     {:t
      {:prompt "Choose the type of object to create from the following list by entering the number of your selection:"
