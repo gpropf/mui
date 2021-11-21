@@ -37,6 +37,16 @@
                           :mode :normal
                           :query {}}))
 
+
+;; mui-object-store: This is actually the memory of the mui language.
+;; Anything you create or import into it gets stored here.  I did not
+;; want rapidly changing things like the mouse position or
+;; command/history buffers to share and atom with large data
+;; structures.
+(defonce mui-object-store
+   {})
+
+
 (def mui-default-cfg {:command-window-prompt ":> "
                       :command-window {}
                       :history-window {:style {:height "auto"
@@ -140,7 +150,8 @@
 
 (defn prettify-history [history-list]
   (reduce #(str %1 %2) ""
-          (reverse (map (fn [history-item] (str history-item "\n")) history-list))))
+          (reverse (map (fn [history-item]
+                          (str history-item "\n")) history-list))))
 
 
 
