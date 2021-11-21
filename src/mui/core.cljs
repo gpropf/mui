@@ -51,8 +51,15 @@
 
 (def command-history (atom '()))
 
-(def conversion-fn-map {:int js/parseInt
-                        :float js/parseFloat})
+(def conversion-fn-map {:int #(let [parsed-int (js/parseInt %)]
+                                (when (js/isNaN parsed-int)
+                                  (throw "Bad input for integer!")
+                                  #_(println "BAD INTEGER!!!!"))
+                                parsed-int)
+                        :float #(let [parsed-float (js/parseFloat %)]
+                                 (when (js/isNaN parsed-float)
+                                   (throw "Bad input for float!"))
+                                 parsed-float)})
 
 (defn command-buffer-clear []
   (swap! mui-state assoc :command-buffer "" :prompt-end 0))
@@ -73,7 +80,10 @@
 
 (defn println-fld [field text]
   (println "CALLED: println-fld with: " text)
-  (append-to-field field (str "\n" text)))
+  (append-to-field field (str "\n" text))
+  (set! (.-scrollTop field) (.-scrollHeight field))
+;; This ^^ doesn't work to keep the textarea scrolled
+  )
 
 
 
@@ -255,18 +265,25 @@
                                               (load-prompts cmd-txtarea))))
                                 :query (case keycode-and-flags
                                          [:Enter, false, false, false, false]
-                                         (let [current-arg (:current-arg @mui-state)
-                                               arg-data
-                                               (get-in @mui-state [:query :args current-arg])
-                                               arg-type (:type arg-data)
-                                               conversion-fn (conversion-fn-map arg-type)
-                                               arg-val (conversion-fn
-                                                        (subs (. cmd-txtarea -value)
-                                                              (:prompt-end @mui-state)))]
-                                           (swap! mui-state assoc-in
-                                                  [:query :args current-arg :val] arg-val)
-                                           (command-buffer-clear)
-                                           (load-prompts cmd-txtarea))
+                                         (try
+                                           (let [current-arg (:current-arg @mui-state)
+                                                 arg-data
+                                                 (get-in @mui-state [:query :args current-arg])
+                                                 arg-type (:type arg-data)
+                                                 conversion-fn (conversion-fn-map arg-type)
+                                                 arg-val (conversion-fn
+                                                          (subs (. cmd-txtarea -value)
+                                                                (:prompt-end @mui-state)))]
+                                             (swap! mui-state assoc-in
+                                                    [:query :args current-arg :val] arg-val)
+                                             #_(command-buffer-clear)
+                                             #_(load-prompts cmd-txtarea))
+                                           (catch js/Object e
+                                             (println e))
+                                           (finally (do
+                                                      (command-buffer-clear)
+                                                      (load-prompts cmd-txtarea))))
+
                                          [:c, false, true, false, false]
                                          (let []
                                            (set-mode :normal nil nil)
