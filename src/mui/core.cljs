@@ -40,10 +40,16 @@
 
 
 (defn register-application-defined-type
-  [t constructor-prompts]
-
-
+  [type-name constructor-prompts]
+  (let []
+    (swap! mui-state update-in [:application-defined-types type-name] conj constructor-prompts)
+    )
   )
+
+
+(register-application-defined-type "FOO" {:a 1})
+(register-application-defined-type "BOO" {:b 2})
+(register-application-defined-type "COO" {:c 3})
 
 
 ;; mui-object-store: This is actually the memory of the mui language.
@@ -52,7 +58,7 @@
 ;; command/history buffers to share and atom with large data
 ;; structures.
 (defonce mui-object-store
-   {})
+   (atom {}))
 
 
 (def mui-default-cfg {:command-window-prompt ":> "
@@ -117,7 +123,7 @@
 
 (def mui-cmd-map
   ;"Basic Mui commands common to all applications, even those besides Rasto."
-  {:F2
+  (atom {:F2
    {:fn (fn [arg-map]
           (let [cmd-txtarea (. js/document getElementById  "command-window")]
             (println "CLEARING WINDOW!!")
@@ -131,8 +137,9 @@
     :help {:msg "n\t: Create a new object."}
     :args
     {:t
-     {:prompt "Choose the type of object to create from the following list by entering the number of your selection:"
-      :type :int}}}})
+     {:prompt (apply str "Choose the type of object to create from the following list by entering the number of your selection:"
+                   (prettify-list-to-string (keys (:application-defined-types @mui-state))))
+      :type :int}}}}))
 
 
 (defn prepare-query-for-history [query]
@@ -269,13 +276,21 @@
          ) mui-cmd-map-including-app-cmds)))
 
 
+(defn merge-in-app-cmds [app-cfg mui-cmd-map-atom]
+  (let [mui-cmd-map @mui-cmd-map-atom
+        app-cmds (:app-cmds app-cfg)
+        merged-cmd-map (merge mui-cmd-map app-cmds)]
+    (reset! mui-cmd-map-atom merged-cmd-map)))
+
+
 (defn mui-gui
   "This is the function that displays the actual Mui console. It will be
   called by the application using Mui, not by anything within it so
   the IDE may identify it as unused."
   [app-cfg]
   (let [mui-cmd-map-including-app-cmds
-        (merge mui-cmd-map (:app-cmds app-cfg)) keystroke-handler
+        (merge-in-app-cmds app-cfg mui-cmd-map)
+        keystroke-handler
         (fn [event]
           (let [cmd-txtarea
                 (. js/document getElementById "command-window")
