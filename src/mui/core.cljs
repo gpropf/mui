@@ -34,8 +34,16 @@
 
 
 (defonce mui-state (atom {:command-buffer ""
+                          :application-defined-types (sorted-map)
                           :mode :normal
                           :query {}}))
+
+
+(defn register-application-defined-type
+  [t constructor-prompts]
+
+
+  )
 
 
 ;; mui-object-store: This is actually the memory of the mui language.
@@ -70,6 +78,16 @@
                                  (when (js/isNaN parsed-float)
                                    (throw "Bad input for float!"))
                                  parsed-float)})
+
+(defn prettify-list-to-string
+  "Prints the collection in lst with numbers associated with each item
+  for user selection purposes."
+  [lst]
+  (map
+   (fn [[i s]] (str i ") " s))
+   (map-indexed vector lst)))
+
+
 
 (defn command-buffer-clear []
   (swap! mui-state assoc :command-buffer "" :prompt-end 0))
@@ -242,65 +260,70 @@
   )
 
 
-(defn prettify-help [mui-cmd-map-including-app-cmds]
+(defn prettify-help
+  "Picks out the help text summary for each command and puts a newline
+  after it to make the help screen look tidy."
+  [mui-cmd-map-including-app-cmds]
   (apply str (map (fn [[key-keyword cmd-map]]
          (str (get-in cmd-map [:help :msg]) "\n")
-         ) mui-cmd-map-including-app-cmds))
-
-  )
+         ) mui-cmd-map-including-app-cmds)))
 
 
-(defn mui-gui [app-cfg]
-
+(defn mui-gui
+  "This is the function that displays the actual Mui console. It will be
+  called by the application using Mui, not by anything within it so
+  the IDE may identify it as unused."
+  [app-cfg]
   (let [mui-cmd-map-including-app-cmds
-        (merge mui-cmd-map (:app-cmds app-cfg))
-        keystroke-handler (fn [event]
-                            (let [cmd-txtarea (. js/document getElementById  "command-window")
-                                  keycode (.-keyCode event)
-                                  _ (println "mui-cmd-map-including-app-cmds:" mui-cmd-map-including-app-cmds)
-                                  key (.-key event)
-                                  keycode-and-flags (print-key-from-event event)
-                                  key-keyword (first keycode-and-flags)
-                                  mui-cmd (mui-cmd-map-including-app-cmds key-keyword)]
-                              (println ":on-key-up, cursor is at "
-                                       (get-cursor-pos cmd-txtarea))
-
-                              (case (:mode @mui-state)
-                                :normal (do
-                                          (case keycode-and-flags
-                                            [:c, false, true, false, false]
-                                            (let [_ (println "CNTRL-C")])
-                                            (when mui-cmd
-                                              (println "NORMAL MODE, Command Entered: " keycode)
-                                              (set-mode :query mui-cmd key-keyword)
-                                              (load-prompts cmd-txtarea))))
-                                :query (case keycode-and-flags
-                                         [:Enter, false, false, false, false]
-                                         (try
-                                           (let [current-arg (:current-arg @mui-state)
-                                                 arg-data
-                                                 (get-in @mui-state [:query :args current-arg])
-                                                 arg-type (:type arg-data)
-                                                 conversion-fn (conversion-fn-map arg-type)
-                                                 arg-val (conversion-fn
-                                                          (subs (. cmd-txtarea -value)
-                                                                (:prompt-end @mui-state)))]
-                                             (swap! mui-state assoc-in
-                                                    [:query :args current-arg :val] arg-val)
-                                             #_(command-buffer-clear)
-                                             #_(load-prompts cmd-txtarea))
-                                           (catch js/Object e
-                                             (println e))
-                                           (finally (do
-                                                      (command-buffer-clear)
-                                                      (load-prompts cmd-txtarea))))
-
-                                         [:c, false, true, false, false]
-                                         (let []
-                                           (set-mode :normal nil nil)
-                                           (println "CNTRL-C - interrupting command.")
-                                           (println-fld "command-window" "-- INTERRUPT! --\n"))
-                                         "default"))))]
+        (merge mui-cmd-map (:app-cmds app-cfg)) keystroke-handler
+        (fn [event]
+          (let [cmd-txtarea
+                (. js/document getElementById "command-window")
+                keycode (.-keyCode event)
+                _ (println
+                   "mui-cmd-map-including-app-cmds:"
+                   mui-cmd-map-including-app-cmds)
+                key (.-key event)
+                keycode-and-flags (print-key-from-event event)
+                key-keyword (first keycode-and-flags)
+                mui-cmd
+                (mui-cmd-map-including-app-cmds key-keyword)]
+            (println ":on-key-up, cursor is at "
+                     (get-cursor-pos cmd-txtarea))
+            (case (:mode @mui-state)
+              :normal (case keycode-and-flags
+                        [:c, false, true, false, false]
+                        (let [_ (println "CNTRL-C")])
+                        (when mui-cmd
+                          (println "NORMAL MODE, Command Entered: " keycode)
+                          (set-mode :query mui-cmd key-keyword)
+                          (load-prompts cmd-txtarea)))
+              :query (case keycode-and-flags
+                       [:Enter, false, false, false, false]
+                       (try
+                         (let [current-arg (:current-arg @mui-state)
+                               arg-data (get-in @mui-state
+                                       [:query :args current-arg])
+                               arg-type (:type arg-data)
+                               conversion-fn (conversion-fn-map arg-type)
+                               arg-val (conversion-fn (subs
+                                                       (. cmd-txtarea -value)
+                                                       (:prompt-end
+                                                        @mui-state)))]
+                           (swap! mui-state assoc-in
+                                  [:query :args current-arg :val] arg-val)
+                           #_(command-buffer-clear)
+                           #_(load-prompts cmd-txtarea))
+                         (catch js/Object e (println e))
+                         (finally (do
+                                    (command-buffer-clear)
+                                    (load-prompts cmd-txtarea))))
+                       [:c, false, true, false, false]
+                       (let []
+                         (set-mode :normal nil nil)
+                         (println "CNTRL-C - interrupting command.")
+                         (println-fld "command-window" "-- INTERRUPT! --\n"))
+                       "default"))))]
     [:div
      [:div {:style {:width "45%" :margin "auto"}}
       [:label {:for "command-window"} "Command Entry: "]
