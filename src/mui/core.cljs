@@ -111,40 +111,6 @@
   )
 
 
-(defn rebuild-mui-cmd-map []
-  {:F2
-   {:fn (fn [arg-map]
-          (let [cmd-txtarea (. js/document getElementById  "command-window")]
-            (println "CLEARING WINDOW!!")
-            (set! (. cmd-txtarea -value) "")
-            (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
-    :args {}
-    :help {:msg "F2\t: Clear command window."}}
-   :n
-   {:fn (fn [arg-map]
-          (println "Would create object of type " (arg-map :t)))
-    :help {:msg "n\t: Create a new object."}
-    :args
-    {:t
-     {:prompt (apply str "Choose the type of object to create from the following list by entering the number of your selection:"
-                     (prettify-list-to-string (keys @application-defined-types)))
-      :type :int}}}})
-
-(def mui-cmd-map
-  ;"Basic Mui commands common to all applications, even those besides Rasto."
-  (atom (rebuild-mui-cmd-map)))
-
-
-(defn register-application-defined-type
-  [type-name constructor-prompts]
-  (swap! application-defined-types update type-name conj constructor-prompts)
-  (reset! mui-cmd-map (rebuild-mui-cmd-map)))
-
-
-(register-application-defined-type "BOO" {:b 2})
-(register-application-defined-type "COO" {:c 3})
-
-
 (defn prepare-query-for-history [query]
   (let [query' (dissoc query :fn :help)
         args (:args query')
@@ -153,31 +119,24 @@
     (assoc query' :args args')))
 
 
+
 (defn add-to-history [args]
   (println "Trying to add " args " to hist")
   (swap! command-history conj (prepare-query-for-history args)))
-
-(def tickets (atom 0))
-
-
-(defn set-mode [mode query-map key-keyword]
-  (let []
-    (println "CALLED: set-mode (query, mode, command-key): " [query-map mode key-keyword])
-    (swap! mui-state assoc
-           :mode mode
-           :query (assoc query-map :command-key key-keyword))))
-
-
-(defn prettify-history [history-list]
-  (reduce #(str %1 %2) ""
-          (reverse (map (fn [history-item]
-                          (str history-item "\n")) history-list))))
-
 
 
 (defn present-prompt [arg-data textarea-element]
   (println-fld "command-window" (str (:prompt arg-data) " "))
   (swap! mui-state assoc :prompt-end (.-selectionStart textarea-element)))
+
+
+(defn set-mode [mode query-map key-keyword]
+  (let []
+    (println "CALLED: set-mode (mode, query-map, command-key): " [mode query-map key-keyword])
+    (swap! mui-state assoc
+           :return-to-normal true
+           :mode mode
+           :query (assoc query-map :command-key key-keyword))))
 
 
 (defn load-prompts [textarea-element]
@@ -199,7 +158,78 @@
         (command-fn args)
         ; ^^^ This is important! ^^^
         ; This is where the commands are run with their arguments.
-        (set-mode :normal {} nil)))))
+        (when (:return-to-normal @mui-state)
+          (set-mode :normal {} nil))))))
+
+
+
+
+(defn rebuild-mui-cmd-map []
+  {:F2
+   {:fn (fn [arg-map]
+          (let [cmd-txtarea (. js/document getElementById  "command-window")]
+            (println "CLEARING WINDOW!!")
+            (set! (. cmd-txtarea -value) "")
+            (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
+    :args {}
+    :help {:msg "F2\t: Clear command window."}}
+   :n
+   {:fn (fn [arg-map]
+          (let [cmd-txtarea (. js/document getElementById  "command-window")
+                user-selection-index (get-in arg-map [:t :val])
+                selected-type-name (nth (keys @application-defined-types) user-selection-index)
+                new-object-query (get-in @application-defined-types [selected-type-name :new])]
+
+            (println "\n\n\nWould create object of type: " selected-type-name)
+            (println "Loading new query: " new-object-query)
+            (set-mode :query new-object-query :nb)
+            (swap! mui-state assoc :return-to-normal false)
+            (load-prompts cmd-txtarea)))
+
+    :help {:msg "n\t: Create a new object."}
+    :args
+    {:t
+     {:prompt (apply str "Choose the type of object to create from the following list by entering the number of your selection:"
+                     (prettify-list-to-string (keys @application-defined-types)))
+      :type :int}}}})
+
+(def mui-cmd-map
+  ;"Basic Mui commands common to all applications, even those besides Rasto."
+  (atom (rebuild-mui-cmd-map)))
+
+
+(defn register-application-defined-type
+  [type-name constructor-prompts]
+  (swap! application-defined-types assoc type-name constructor-prompts)
+  (reset! mui-cmd-map (rebuild-mui-cmd-map)))
+
+
+(register-application-defined-type "BOO" {:b 2})
+(register-application-defined-type "COO" {:c 3})
+
+
+
+
+
+
+
+(def tickets (atom 0))
+
+
+
+
+
+(defn prettify-history [history-list]
+  (reduce #(str %1 %2) ""
+          (reverse (map (fn [history-item]
+                          (str history-item "\n")) history-list))))
+
+
+
+
+
+
+
 
 
 #_(defn load-next-arg []
