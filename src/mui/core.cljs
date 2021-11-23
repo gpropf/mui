@@ -34,22 +34,11 @@
 
 
 (defonce mui-state (atom {:command-buffer ""
-                          :application-defined-types (sorted-map)
                           :mode :normal
                           :query {}}))
 
+(defonce application-defined-types (atom (sorted-map)))
 
-(defn register-application-defined-type
-  [type-name constructor-prompts]
-  (let []
-    (swap! mui-state update-in [:application-defined-types type-name] conj constructor-prompts)
-    )
-  )
-
-
-(register-application-defined-type "FOO" {:a 1})
-(register-application-defined-type "BOO" {:b 2})
-(register-application-defined-type "COO" {:c 3})
 
 
 ;; mui-object-store: This is actually the memory of the mui language.
@@ -61,6 +50,9 @@
    (atom {}))
 
 
+;(defonce mui-constructor-map (atom {}))
+
+
 (def mui-default-cfg {:command-window-prompt ":> "
                       :command-window {}
                       :history-window {:style {:height "auto"
@@ -70,7 +62,6 @@
                                        :rows "8"
                                        :cols "60"
                                        :class ""
-                                             ;:default-value ""
                                        }})
 
 (def command-history (atom '()))
@@ -120,10 +111,8 @@
   )
 
 
-
-(def mui-cmd-map
-  ;"Basic Mui commands common to all applications, even those besides Rasto."
-  (atom {:F2
+(defn rebuild-mui-cmd-map []
+  {:F2
    {:fn (fn [arg-map]
           (let [cmd-txtarea (. js/document getElementById  "command-window")]
             (println "CLEARING WINDOW!!")
@@ -138,18 +127,30 @@
     :args
     {:t
      {:prompt (apply str "Choose the type of object to create from the following list by entering the number of your selection:"
-                   (prettify-list-to-string (keys (:application-defined-types @mui-state))))
-      :type :int}}}}))
+                     (prettify-list-to-string (keys @application-defined-types)))
+      :type :int}}}})
+
+(def mui-cmd-map
+  ;"Basic Mui commands common to all applications, even those besides Rasto."
+  (atom (rebuild-mui-cmd-map)))
+
+
+(defn register-application-defined-type
+  [type-name constructor-prompts]
+  (swap! application-defined-types update type-name conj constructor-prompts)
+  (reset! mui-cmd-map (rebuild-mui-cmd-map)))
+
+
+(register-application-defined-type "BOO" {:b 2})
+(register-application-defined-type "COO" {:c 3})
 
 
 (defn prepare-query-for-history [query]
-  (let [query' (dissoc query :fn)
+  (let [query' (dissoc query :fn :help)
         args (:args query')
         args' (into {} (map (fn [[arg arg-data]]
                               [arg (:val arg-data)]) args))]
-
     (assoc query' :args args')))
-
 
 
 (defn add-to-history [args]
@@ -157,12 +158,6 @@
   (swap! command-history conj (prepare-query-for-history args)))
 
 (def tickets (atom 0))
-
-#_(defn take-ticket! []
-  (let [ticket-num @tickets]
-    (println "Ticket #" ticket-num " taken.")
-    (swap! tickets inc)
-    ))
 
 
 (defn set-mode [mode query-map key-keyword]
