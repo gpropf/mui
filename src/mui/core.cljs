@@ -191,7 +191,7 @@
           (let [cmd-txtarea (. js/document getElementById  "command-window")
                 user-selection-index (get-in arg-map [:t :val])
                 selected-type-name (nth (keys @application-defined-types) user-selection-index)
-                new-object-query (get-in @application-defined-types [selected-type-name :new])]
+                new-object-query (get-in @application-defined-types [selected-type-name :prompts :new])]
 
             (println "\n\n\nWould create object of type: " selected-type-name)
             (println "Loading new query: " new-object-query)
@@ -213,7 +213,8 @@
 
 (defn register-application-defined-type
   [type-name constructor-prompts]
-  (swap! application-defined-types assoc type-name constructor-prompts)
+  (swap! application-defined-types assoc type-name {:prompts constructor-prompts
+                                                    :selection nil})
   (reset! mui-cmd-map (rebuild-mui-cmd-map)))
 
 
@@ -221,8 +222,15 @@
 (register-application-defined-type "COO" {:c 3})
 
 
+(defn select-object [obj obj-type]
+  (let [id (:id @obj)]
+    (swap! application-defined-types assoc-in [obj-type :selection] id)
+    ))
+
+
 (defn add-object-to-object-store [obj obj-type id parent-obj-id]
-  (swap! mui-object-store assoc-in [obj-type id] {:obj obj :parent-obj-id parent-obj-id}))
+  (do (swap! mui-object-store assoc-in [obj-type id] {:obj obj :parent-obj-id parent-obj-id})
+      (select-object obj obj-type)))
 
 
 
