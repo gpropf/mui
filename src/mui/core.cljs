@@ -47,7 +47,7 @@
 ;; command/history buffers to share and atom with large data
 ;; structures.
 (defonce mui-object-store
-   (atom {}))
+   (atom (sorted-map)))
 
 
 ;(defonce mui-constructor-map (atom {}))
@@ -80,9 +80,10 @@
   "Prints the collection in lst with numbers associated with each item
   for user selection purposes."
   [lst]
-  (map
-   (fn [[i s]] (str i ") " s))
-   (map-indexed vector lst)))
+  (interpose ", "
+             (map
+              (fn [[i s]] (str i ") " s))
+              (map-indexed vector lst))))
 
 
 
@@ -183,9 +184,10 @@
             (println "\n\n\nWould create object of type: " selected-type-name)
             (println "Loading new query: " new-object-query)
             (set-mode :query new-object-query :nb)
+            ;; We don't return to normal mode so the queries for the
+            ;; constructor args will be processed.
             (swap! mui-state assoc :return-to-normal false)
             (load-prompts cmd-txtarea)))
-
     :help {:msg "n\t: Create a new object."}
     :args
     {:t
@@ -208,7 +210,12 @@
 (register-application-defined-type "COO" {:c 3})
 
 
+(defn add-object-to-object-store [obj obj-type id parent-obj-id]
+  (swap! mui-object-store id {:obj obj :type obj-type :id parent-obj-id})
 
+
+
+  )
 
 
 
@@ -368,8 +375,7 @@
      [:div {:style {:width "45%" :margin "auto"}}
       [:label {:for "command-window"} "Command Entry: "]
       [:textarea  (merge (:command-window app-cfg)
-                         {;:on-load #(swap! mui-state assoc :implicits (:implicits app-cfg))
-                          :on-key-up keystroke-handler
+                         {:on-key-up keystroke-handler
                           :on-key-down filter-keystrokes
                           :on-change (fn [event]
                                        (let [cmd-txtarea (. js/document getElementById
