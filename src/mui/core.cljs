@@ -163,6 +163,10 @@
           (set-mode :normal {} nil))))))
 
 
+(defn choose-type []
+  (apply str
+         "Choose the type of object to create from the following list by entering the number of your selection:"
+         (prettify-list-to-string (keys @application-defined-types))))
 
 
 (defn rebuild-mui-cmd-map []
@@ -174,6 +178,14 @@
             (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
     :args {}
     :help {:msg "F2\t: Clear command window."}}
+   :s {:fn (fn [arg-map]
+             (let [cmd-txtarea (. js/document getElementById  "command-window")]
+               (println "Selecting object!")))
+       :args {:t
+              {:prompt (choose-type)
+               :type :int}}
+       :help {:msg "s: Select an object for further use."}}
+
    :n
    {:fn (fn [arg-map]
           (let [cmd-txtarea (. js/document getElementById  "command-window")
@@ -191,8 +203,7 @@
     :help {:msg "n\t: Create a new object."}
     :args
     {:t
-     {:prompt (apply str "Choose the type of object to create from the following list by entering the number of your selection:"
-                     (prettify-list-to-string (keys @application-defined-types)))
+     {:prompt (choose-type)
       :type :int}}}})
 
 (def mui-cmd-map
@@ -211,11 +222,7 @@
 
 
 (defn add-object-to-object-store [obj obj-type id parent-obj-id]
-  (swap! mui-object-store id {:obj obj :type obj-type :id parent-obj-id})
-
-
-
-  )
+  (swap! mui-object-store assoc-in [obj-type id] {:obj obj :parent-obj-id parent-obj-id}))
 
 
 
