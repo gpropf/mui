@@ -25,7 +25,7 @@
 
 
 (def letter-to-ascii-map {:b  66 :c  67 :F2  113 :Enter  13
-                          :n 78})
+                          :n 78 :s 83})
 
 
                                         ; (.charCodeAt \b 0)
@@ -86,6 +86,13 @@
               (map-indexed vector lst))))
 
 
+(defn list-objects-of-type [t]
+  (let [objects (@mui-object-store t)
+        object-ids (keys objects)
+        _ (println "FOR TYPE : " t " IDS: " object-ids)]
+    (prettify-list-to-string object-ids)))
+
+
 
 (defn command-buffer-clear []
   (swap! mui-state assoc :command-buffer "" :prompt-end 0))
@@ -127,8 +134,13 @@
 
 
 (defn present-prompt [arg-data textarea-element]
-  (println-fld "command-window" (str (:prompt arg-data) " "))
-  (swap! mui-state assoc :prompt-end (.-selectionStart textarea-element)))
+  (let [prompt (:prompt arg-data)
+        prompt-text (if (= (type prompt) (type (fn [])))
+                      (apply prompt ())
+                      prompt)]
+
+    (println-fld "command-window" (str prompt-text " "))
+    (swap! mui-state assoc :prompt-end (.-selectionStart textarea-element))))
 
 
 (defn set-mode [mode query-map key-keyword]
@@ -169,6 +181,8 @@
          (prettify-list-to-string (keys @application-defined-types))))
 
 
+
+
 (defn rebuild-mui-cmd-map []
   {:F2
    {:fn (fn [arg-map]
@@ -183,8 +197,15 @@
                (println "Selecting object!")))
        :args {:t
               {:prompt (choose-type)
+               :type :int}
+              :obj
+              {:prompt (fn []
+                         (let [type-index (get-in @mui-state [:query :args :t :val])
+                               type-names (keys @application-defined-types)
+                               selected-type-name (nth type-names type-index)]
+                           (list-objects-of-type selected-type-name)))
                :type :int}}
-       :help {:msg "s: Select an object for further use."}}
+       :help {:msg "s\t: Select an object for further use."}}
 
    :n
    {:fn (fn [arg-map]
