@@ -242,7 +242,12 @@
 
 
 
-(defn rebuild-mui-cmd-map []
+(defn rebuild-mui-cmd-map
+  "Prompts can now be functions that return text instead of static
+  text. Any prompt whose text might change based on something that can
+  change during a run should be a function so that it can build its
+  text based on what's going on in the program."
+  []
   {:F2
    {:fn (fn [arg-map]
           (let [cmd-txtarea (. js/document getElementById  "command-window")]
@@ -268,7 +273,7 @@
                (println "Selecting object!"
                         [selected-object-type  selected-object-id])))
        :args {:t
-              {:prompt (choose-type true)
+              {:prompt (fn [] (choose-type true))
                :type :int}
               :obj
               {:prompt (fn []
