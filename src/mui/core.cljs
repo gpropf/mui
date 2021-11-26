@@ -76,6 +76,7 @@
                                    (throw "Bad input for float!"))
                                  parsed-float)})
 
+
 (defn prettify-list-to-string
   "Prints the collection in lst with numbers associated with each item
   for user selection purposes."
@@ -86,11 +87,53 @@
               (map-indexed vector lst))))
 
 
+#_(defn select-object-from-store
+  ([object-store-atom query-fn]
+   (select-object-from-store object-store-atom query-fn nil))
+  ([object-store-atom query-fn type-key]
+   (let [object-store @object-store-atom
+         choices (if (nil? type-key)
+                   (query-fn (apply str
+                                    "Choose type of object from list: "
+                                    (prettify-list-to-string (keys object-store)) " "))
+                   (query-fn (apply str
+                                    "Choose object from list: "
+                                    (prettify-list-to-string (keys (object-store type-key))) " ")))]
+     choices
+     )))
+
+
+(defn get-object-id-by-numbers
+  ([map-atom k]
+   (get-object-id-by-numbers map-atom k nil))
+  ([map-atom k n]
+   (let [types (keys @map-atom)
+         obj-type (nth types k)
+         objs (keys (@map-atom obj-type))]
+     (if (nil? n)
+       (nth types k)
+       (nth objs n)))))
+
+
+(defn choose-object
+  ([map-atom query-text k]
+   (choose-object map-atom query-text k nil))
+  ([map-atom query-text k n]
+   (let [objs (@map-atom k)
+         obj-ids (keys objs)
+        ;_ (println "FOR TYPE : " t " IDS: " object-ids)
+         ]
+     (if (nil? n)
+       (apply str query-text " " (prettify-list-to-string obj-ids))
+       (nth obj-ids n)
+       ))))
+
+
 (defn list-objects-of-type [t]
   (let [objects (@mui-object-store t)
         object-ids (keys objects)
         _ (println "FOR TYPE : " t " IDS: " object-ids)]
-    (prettify-list-to-string object-ids)))
+    (apply str "Select an object by entering its number: "(prettify-list-to-string object-ids))))
 
 
 
@@ -175,10 +218,26 @@
           (set-mode :normal {} nil))))))
 
 
-(defn choose-type []
+#_(defn choose-type []
   (apply str
-         "Choose the type of object to create from the following list by entering the number of your selection:"
+         "Choose the type of object from the following list by entering the number of your selection:"
          (prettify-list-to-string (keys @application-defined-types))))
+
+
+(defn choose-type
+  ([]
+   (choose-type false))
+  ([only-choose-from-extant-types]
+   (let [map-atom (if only-choose-from-extant-types mui-object-store application-defined-types)
+         prompt-text "BB Choose the type of object from the following list by entering the number of your selection:"]
+     (apply str
+          prompt-text
+          (prettify-list-to-string (keys @map-atom))))))
+
+
+(defn select-object [obj-type obj-id]
+  (let []
+    (swap! application-defined-types assoc-in [obj-type :selection] obj-id)))
 
 
 
@@ -193,17 +252,33 @@
     :args {}
     :help {:msg "F2\t: Clear command window."}}
    :s {:fn (fn [arg-map]
-             (let [cmd-txtarea (. js/document getElementById  "command-window")]
-               (println "Selecting object!")))
+             (let [cmd-txtarea (. js/document getElementById  "command-window")
+                   selected-object-id-index
+                   (get-in (:query @mui-state) [:args :obj :val])
+                   selected-object-type-index
+                   (get-in (:query @mui-state) [:args :t :val])
+                   selected-object-id
+                   (get-object-id-by-numbers mui-object-store
+                    selected-object-type-index selected-object-id-index)
+                   selected-object-type
+                   (get-object-id-by-numbers mui-object-store
+                    selected-object-type-index)]
+               (select-object selected-object-type selected-object-id)
+
+               (println "Selecting object!"
+                        [selected-object-type  selected-object-id])))
        :args {:t
-              {:prompt (choose-type)
+              {:prompt (choose-type true)
                :type :int}
               :obj
               {:prompt (fn []
-                         (let [type-index (get-in @mui-state [:query :args :t :val])
-                               type-names (keys @application-defined-types)
+                         (let [type-index
+                               (get-in @mui-state [:query :args :t :val])
+                               type-names (keys @mui-object-store)
                                selected-type-name (nth type-names type-index)]
-                           (list-objects-of-type selected-type-name)))
+                           (choose-object mui-object-store
+                                          "Select an object by entering its number: "
+                                          selected-type-name)))
                :type :int}}
        :help {:msg "s\t: Select an object for further use."}}
 
@@ -243,15 +318,11 @@
 (register-application-defined-type "COO" {:c 3})
 
 
-(defn select-object [obj obj-type]
-  (let [id (:id @obj)]
-    (swap! application-defined-types assoc-in [obj-type :selection] id)
-    ))
 
 
-(defn add-object-to-object-store [obj obj-type id parent-obj-id]
-  (do (swap! mui-object-store assoc-in [obj-type id] {:obj obj :parent-obj-id parent-obj-id})
-      (select-object obj obj-type)))
+(defn add-object-to-object-store [obj obj-type obj-id parent-obj-id]
+  (do (swap! mui-object-store assoc-in [obj-type obj-id] {:obj obj :parent-obj-id parent-obj-id})
+      (select-object obj-type obj-id )))
 
 
 
