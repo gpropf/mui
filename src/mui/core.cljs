@@ -116,6 +116,8 @@
 
 
 (defn choose-object
+  "Associated with the 'select' command. Chooses a particular object
+  for further operations."
   ([map-atom query-text k]
    (choose-object map-atom query-text k nil))
   ([map-atom query-text k n]
@@ -225,6 +227,9 @@
 
 
 (defn choose-type
+  "Associated with the 'select' command. Chooses a particular type. When followed
+  with a call to 'choose-object' we have set the selection for a particular type of
+  object."
   ([]
    (choose-type false))
   ([only-choose-from-extant-types]
