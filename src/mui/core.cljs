@@ -23,6 +23,8 @@
    [cljs.pprint :as pp :refer [pprint]]
    [rasto.util :as rut]))
 
+;; This is how to do reflection - (:arglists (meta #'rasto.core/make-raster))
+
 
 (def letter-to-ascii-map {:b  66 :c  67 :F2  113 :Enter  13
                           :n 78 :s 83})
