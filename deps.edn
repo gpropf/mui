@@ -4,6 +4,12 @@
  :deps
  {org.clojure/clojurescript {:mvn/version "1.10.597"}
   reagent/reagent           {:mvn/version "0.10.0"}
+  com.bhauman/figwheel-main {:mvn/version "0.2.12"}
+  com.bhauman/rebel-readline-cljs {:mvn/version "0.1.4"}
   }
 
- }
+ :aliases
+ {:dev {:main-opts ["-m" "figwheel.main" "--build" "dev" "--repl"]}
+  :prod {:main-opts ["-m" "cljs.main" "--optimizations" "advanced" "-c" "example.main"]}}}
+
+

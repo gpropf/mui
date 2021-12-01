@@ -21,13 +21,13 @@
    [reagent.core :as reagent :refer [atom]]
    [clojure.set :as set]
    [cljs.pprint :as pp :refer [pprint]]
-   [rasto.util :as rut]))
+   ))
 
 ;; This is how to do reflection - (:arglists (meta #'rasto.core/make-raster))
 
 
 (def letter-to-ascii-map {:b  66 :c  67 :F2  113 :Enter  13
-                          :n 78 :s 83})
+                          :n 78 :s 83 :d 68})
 
 
                                         ; (.charCodeAt \b 0)
@@ -236,10 +236,20 @@
    (choose-type false))
   ([only-choose-from-extant-types]
    (let [map-atom (if only-choose-from-extant-types mui-object-store application-defined-types)
-         prompt-text "BB Choose the type of object from the following list by entering the number of your selection:"]
+         prompt-text "Choose the type of object from the following list by entering the number of your selection:"]
      (apply str
           prompt-text
           (prettify-list-to-string (keys @map-atom))))))
+
+
+
+(defn confirm-action
+  "Generally this asks you to confirm a risky action like deleting something."
+  ([default-answer]
+   (let [prompt-text "Do you want to do this (y/n):"]
+     (apply str
+            prompt-text
+            ))))
 
 
 (defn select-object [obj-type obj-id]
@@ -293,7 +303,28 @@
                                           selected-type-name)))
                :type :int}}
        :help {:msg "s\t: Select an object for further use."}}
+  :d {:fn (fn [arg-map]
+            (let [cmd-txtarea (. js/document getElementById  "command-window")
+                  selected-object-id-index
+                  (get-in (:query @mui-state) [:args :obj :val])
+                  selected-object-type-index
+                  (get-in (:query @mui-state) [:args :t :val])
+                  selected-object-id
+                  (get-object-id-by-numbers mui-object-store
+                                            selected-object-type-index selected-object-id-index)
+                  selected-object-type
+                  (get-object-id-by-numbers mui-object-store
+                                            selected-object-type-index)]
+              (select-object selected-object-type selected-object-id)
 
+              (println "Deleting object!"
+                       [selected-object-type  selected-object-id])))
+      :args {:confirm
+             {:prompt (fn [] (confirm-action true))
+              :type :string}
+
+             }
+      :help {:msg "d\t: Delete currently selected object."}}
    :n
    {:fn (fn [arg-map]
           (let [cmd-txtarea (. js/document getElementById  "command-window")
@@ -326,8 +357,6 @@
   (reset! mui-cmd-map (rebuild-mui-cmd-map)))
 
 
-(register-application-defined-type "BOO" {:b 2})
-(register-application-defined-type "COO" {:c 3})
 
 
 

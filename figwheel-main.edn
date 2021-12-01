@@ -1,0 +1,5 @@
+{
+ :pprint-config false
+ :ring-server-options {:port 9700}
+ :watch-dirs ["src/mui"]
+ }

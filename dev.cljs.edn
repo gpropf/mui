@@ -1,0 +1,6 @@
+^{:watch-dirs ["src"]
+  :css-dirs   ["resources"]}
+;;  :open-url "http://localhost/mu"}
+{:main mui.example
+ :source-map true
+ :optimizations :none}
