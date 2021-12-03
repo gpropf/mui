@@ -85,7 +85,8 @@
                         :float #(let [parsed-float (js/parseFloat %)]
                                   (when (js/isNaN parsed-float)
                                     (throw "Bad input for float!"))
-                                  parsed-float)})
+                                  parsed-float)
+                        :yn    #(identity %1)})
 
 
 (defn prettify-list-to-string
@@ -168,9 +169,11 @@
 
 
 (defn println-fld [field text]
-  (println "CALLED: println-fld with: " text)
-  (append-to-field field (str "\n" text))
-  (set! (.-scrollTop field) (.-scrollHeight field))
+  (let [sh (.-scrollHeight field)]
+    (println "CALLED: println-fld with: " text)
+    (append-to-field field (str "\n" text))
+    (set! (. field -scrollTop) sh))
+
   ;; This ^^ doesn't work to keep the textarea scrolled
   )
 
@@ -314,23 +317,12 @@
        :help {:msg "s\t: Select an object for further use."}}
    :d {:fn   (fn [arg-map]
                (let [cmd-txtarea (. js/document getElementById "command-window")
-                     selected-object-id-index
-                     (get-in (:query @mui-state) [:args :obj :val])
-                     selected-object-type-index
-                     (get-in (:query @mui-state) [:args :t :val])
-                     selected-object-id
-                     (get-object-id-by-numbers mui-object-store
-                                               selected-object-type-index selected-object-id-index)
-                     selected-object-type
-                     (get-object-id-by-numbers mui-object-store
-                                               selected-object-type-index)]
-                 (select-object selected-object-type selected-object-id)
-
-                 (println "Deleting object!"
-                          [selected-object-type selected-object-id])))
+                     ]
+                 (println "Would Delete currently selected object!"
+                          )))
        :args {:confirm
               {:prompt (fn [] (confirm-action true))
-               :type   :string}
+               :type   :yn}
 
               }
        :help {:msg "d\t: Delete currently selected object."}}
