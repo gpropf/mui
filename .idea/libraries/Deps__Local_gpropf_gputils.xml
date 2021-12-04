@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="Deps: Local gpropf/gputils">
+    <CLASSES />
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../gputils/src/" />
+      <root url="file://$PROJECT_DIR$/../gputils/target/" />
+    </SOURCES>
+  </library>
+</component>

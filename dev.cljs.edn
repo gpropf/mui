@@ -1,4 +1,4 @@
-^{:watch-dirs ["src"]
+^{:watch-dirs ["src" "../gputils/src"]
   :css-dirs   ["resources"]}
 ;;  :open-url "http://localhost/mu"}
 {:main mui.example

@@ -9,6 +9,7 @@
    [clojure.string :as str]
    [reagent.core :as reagent :refer [atom]]
    [cljs.pprint :as pp :refer [pprint]]
+   [gputils.core :as gpu]
    ))
 
 (enable-console-print!)
@@ -34,7 +35,12 @@
 (mc/register-application-defined-type "T1" {:b 2})
 (mc/register-application-defined-type "T2" {:c 3})
 
+(def test-data-map {:download-filename "gputils-test.edn"
+                    :data [1 2 3 4 5 :a :b :foo]})
 
+#_(gpu/send-data test-data-map)
+
+#_(def parsed-upload (gpu/fetch-and-parse-uploaded-file! nil prn))
 
 (defn app
   "Creates the app and all its controls.  Everything we use is called

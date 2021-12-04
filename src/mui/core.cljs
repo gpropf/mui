@@ -21,6 +21,7 @@
     [reagent.core :as reagent :refer [atom]]
     [clojure.set :as set]
     [cljs.pprint :as pp :refer [pprint]]
+    [gputils.core :as gpu]
     ;[cljs.js]
     ))
 
@@ -522,6 +523,7 @@
                        "default"))))]
     [:div
      [:div {:style {:width "45%" :margin "auto"}}
+      [gpu/upload-control {} js/alert]
       [:label {:for "command-window"} "Command Entry: "]
       [:textarea (merge (:command-window app-cfg)
                         {:on-key-up   keystroke-handler

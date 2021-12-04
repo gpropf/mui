@@ -15,6 +15,7 @@
     <orderEntry type="library" name="Deps: org.clojure/data.json:0.2.6" level="project" />
     <orderEntry type="library" name="Deps: org.clojure/clojure:1.10.1" level="project" />
     <orderEntry type="library" name="Deps: commons-codec:1.11" level="project" />
+    <orderEntry type="library" name="Deps: Local gpropf/gputils" level="project" />
     <orderEntry type="library" name="Deps: com.bhauman/cljs-test-display:0.1.1" level="project" />
     <orderEntry type="library" name="Deps: org.eclipse.jetty/jetty-xml:9.4.28.v20200408" level="project" />
     <orderEntry type="library" name="Deps: com.bhauman/figwheel-repl:0.2.12" level="project" />
@@ -89,6 +90,7 @@
     <orderEntry type="library" name="Deps: org.jline/jline-terminal:3.5.1" level="project" />
     <orderEntry type="library" name="Deps: javax.servlet/javax.servlet-api:3.1.0" level="project" />
     <orderEntry type="library" name="Deps: org.jline/jline-reader:3.5.1" level="project" />
+    <orderEntry type="library" name="Deps: binaryage/oops:0.7.0" level="project" />
     <orderEntry type="library" name="Deps: clj-stacktrace:0.2.8" level="project" />
     <orderEntry type="library" name="Deps: com.google.javascript/closure-compiler-unshaded:v20180805" level="project" />
     <orderEntry type="library" name="Deps: org.eclipse.jetty.websocket/websocket-server:9.4.28.v20200408" level="project" />
