@@ -37,7 +37,7 @@
 
 
 (def letter-to-ascii-map {:b 66 :c 67 :F2 113 :Enter 13
-                          :n 78 :s 83 :d 68})
+                          :n 78 :s 83 :d 68 :ArrowUp 38 :ArrowDown 40})
 
 
 ; (.charCodeAt \b 0)
@@ -78,16 +78,26 @@
 
 (def command-history (atom '()))
 
-(def conversion-fn-map {:int   #(let [parsed-int (js/parseInt %)]
-                                  (when (js/isNaN parsed-int)
-                                    (throw "Bad input for integer!")
-                                    #_(println "BAD INTEGER!!!!"))
-                                  parsed-int)
-                        :float #(let [parsed-float (js/parseFloat %)]
-                                  (when (js/isNaN parsed-float)
-                                    (throw "Bad input for float!"))
-                                  parsed-float)
-                        :yn    #(identity %1)})
+(def conversion-fn-map {:int    #(let [parsed-int (js/parseInt %)]
+                                   (when (js/isNaN parsed-int)
+                                     (throw "Bad input for integer!")
+                                     #_(println "BAD INTEGER!!!!"))
+                                   parsed-int)
+                        :float  #(let [parsed-float (js/parseFloat %)]
+                                   (when (js/isNaN parsed-float)
+                                     (throw "Bad input for float!"))
+                                   parsed-float)
+                        :yn     #(let [trimmed-input (str/trim %1)]
+                                   (println "conversion-fn-map: '" trimmed-input "'")
+                                   (case trimmed-input
+                                     ("y" "Y") "Y"
+                                     ("n" "N") "N"
+                                     (throw "Only 'y' or 'n' answers allowed!")
+                                     ))                     ;; FIXME
+                        :string #(let []
+                                   (when (empty? (str/trim %1))
+                                     (throw "Empty strings not allowed!")
+                                     ) (str/trim %1))})
 
 
 (defn prettify-list-to-string
@@ -235,12 +245,6 @@
           (set-mode :normal {} nil))))))
 
 
-#_(defn choose-type []
-    (apply str
-           "Choose the type of object from the following list by entering the number of your selection:"
-           (prettify-list-to-string (keys @application-defined-types))))
-
-
 (defn choose-type
   "Associated with the 'select' command. Chooses a particular type. When followed
   with a call to 'choose-object' we have set the selection for a particular type of
@@ -279,73 +283,88 @@
   text based on what's going on in the program."
   []
   {:F2
-      {:fn   (fn [arg-map]
-               (let [cmd-txtarea (. js/document getElementById "command-window")]
-                 (println "CLEARING WINDOW!!")
-                 (set! (. cmd-txtarea -value) "")
-                 (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
-       :args {}
-       :help {:msg "F2\t: Clear command window."}}
-   :s {:fn   (fn [arg-map]
-               (let [cmd-txtarea (. js/document getElementById "command-window")
-                     selected-object-id-index
-                     (get-in (:query @mui-state) [:args :obj :val])
-                     selected-object-type-index
-                     (get-in (:query @mui-state) [:args :t :val])
-                     selected-object-id
-                     (get-object-id-by-numbers mui-object-store
-                                               selected-object-type-index selected-object-id-index)
-                     selected-object-type
-                     (get-object-id-by-numbers mui-object-store
-                                               selected-object-type-index)]
-                 (select-object selected-object-type selected-object-id)
+              {:fn   (fn [arg-map]
+                       (let [cmd-txtarea (. js/document getElementById "command-window")]
+                         (println "CLEARING WINDOW!!")
+                         (set! (. cmd-txtarea -value) "")
+                         (command-buffer-clear)  #_(swap! mui-state assoc :command-buffer "")))
+               :args {}
+               :help {:msg "F2\t: Clear command window."}}
+   :s         {:fn   (fn [arg-map]
+                       (let [cmd-txtarea (. js/document getElementById "command-window")
+                             selected-object-id-index
+                             (get-in (:query @mui-state) [:args :obj :val])
+                             selected-object-type-index
+                             (get-in (:query @mui-state) [:args :t :val])
+                             selected-object-id
+                             (get-object-id-by-numbers mui-object-store
+                                                       selected-object-type-index selected-object-id-index)
+                             selected-object-type
+                             (get-object-id-by-numbers mui-object-store
+                                                       selected-object-type-index)]
+                         (select-object selected-object-type selected-object-id)
 
-                 (println "Selecting object!"
-                          [selected-object-type selected-object-id])))
-       :args {:t
-              {:prompt (fn [] (choose-type true))
-               :type   :int}
-              :obj
-              {:prompt (fn []
-                         (let [type-index
-                               (get-in @mui-state [:query :args :t :val])
-                               type-names (keys @mui-object-store)
-                               selected-type-name (nth type-names type-index)]
-                           (choose-object mui-object-store
-                                          "Select an object by entering its number: "
-                                          selected-type-name)))
-               :type   :int}}
-       :help {:msg "s\t: Select an object for further use."}}
-   :d {:fn   (fn [arg-map]
-               (let [cmd-txtarea (. js/document getElementById "command-window")
-                     ]
-                 (println "Would Delete currently selected object!"
-                          )))
-       :args {:confirm
-              {:prompt (fn [] (confirm-action true))
-               :type   :yn}
+                         (println "Selecting object!"
+                                  [selected-object-type selected-object-id])))
+               :args {:t
+                      {:prompt (fn [] (choose-type true))
+                       :type   :int}
+                      :obj
+                      {:prompt (fn []
+                                 (let [type-index
+                                       (get-in @mui-state [:query :args :t :val])
+                                       type-names (keys @mui-object-store)
+                                       selected-type-name (nth type-names type-index)]
+                                   (choose-object mui-object-store
+                                                  "Select an object by entering its number: "
+                                                  selected-type-name)))
+                       :type   :int}}
+               :help {:msg "s\t: Select an object for further use."}}
+   :d         {:fn   (fn [arg-map]
+                       (let [cmd-txtarea (. js/document getElementById "command-window")
+                             yes-or-no (get-in arg-map [:confirm :val])
+                             ]
+                         (println "Would Delete currently selected object?: " yes-or-no
+                                  )))
+               :args {:confirm
+                      {:prompt (fn [] (confirm-action true))
+                       :type   :yn}
 
-              }
-       :help {:msg "d\t: Delete currently selected object."}}
+                      }
+               :help {:msg "d\t: Delete currently selected object."}}
+   :ArrowDown {:fn   (fn [arg-map]
+                       (let [download-filename (get-in arg-map [:download-filename :val])
+                             data (rebuild-mui-cmd-map)
+                             data-map {:download-filename download-filename
+                                       :data              data}]
+                         (gpu/send-data data-map download-filename)
+                         ))
+               :args {:download-filename
+                      {:prompt "Enter a filename:"
+                       :type   :string}
+                      }
+               :help {:msg "↓\t: Download the current command map to an edn file."}
+               }
+
    :n
-      {:fn   (fn [arg-map]
-               (let [cmd-txtarea (. js/document getElementById "command-window")
-                     user-selection-index (get-in arg-map [:t :val])
-                     selected-type-name (nth (keys @application-defined-types) user-selection-index)
-                     new-object-query (get-in @application-defined-types [selected-type-name :prompts :new])]
+              {:fn   (fn [arg-map]
+                       (let [cmd-txtarea (. js/document getElementById "command-window")
+                             user-selection-index (get-in arg-map [:t :val])
+                             selected-type-name (nth (keys @application-defined-types) user-selection-index)
+                             new-object-query (get-in @application-defined-types [selected-type-name :prompts :new])]
 
-                 (println "\n\n\nWould create object of type: " selected-type-name)
-                 (println "Loading new query: " new-object-query)
-                 (set-mode :query new-object-query :nb)
-                 ;; We don't return to normal mode so the queries for the
-                 ;; constructor args will be processed.
-                 (swap! mui-state assoc :return-to-normal false)
-                 (load-prompts cmd-txtarea)))
-       :help {:msg "n\t: Create a new object."}
-       :args
-             {:t
-              {:prompt (choose-type)
-               :type   :int}}}})
+                         (println "\n\n\nWould create object of type: " selected-type-name)
+                         (println "Loading new query: " new-object-query)
+                         (set-mode :query new-object-query :nb)
+                         ;; We don't return to normal mode so the queries for the
+                         ;; constructor args will be processed.
+                         (swap! mui-state assoc :return-to-normal false)
+                         (load-prompts cmd-txtarea)))
+               :help {:msg "n\t: Create a new object."}
+               :args
+                     {:t
+                      {:prompt (choose-type)
+                       :type   :int}}}})
 
 (def mui-cmd-map
   ;"Basic Mui commands common to all applications, even those besides Rasto."
