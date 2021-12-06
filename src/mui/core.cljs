@@ -44,7 +44,11 @@
                                     :F2        [113 false false false false]
                                     :Ctrl-C    [67 false true false false]
                                     :ArrowDown [40 false false false false]
+                                    :ArrowUp [38 false false false false]
                                     :Enter     [13 false false false false]
+                                    :s [83 false false false false]
+                                    :n [78 false false false false]
+                                    :d [68 false false false false]
                                     })
 ;;keycode-and-flags [keycode alt-key ctrl-key shift-key meta-key]]
 (def key-with-modifiers-to-key-sym (set/map-invert key-sym-to-key-with-modifiers))
@@ -395,7 +399,7 @@
 
                                    )
                :help             {:msg "Ctrl-C\t: Abort command."}
-               :active-in-states (set [:normal])
+               :active-in-states (set [:normal :query])
                :args             {}}
    :n
               {:fn               (fn [arg-map]
