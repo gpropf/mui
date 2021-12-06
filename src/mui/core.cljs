@@ -40,7 +40,14 @@
                           :n 78 :s 83 :d 68 :ArrowUp 38 :ArrowDown 40})
 
 
-; (.charCodeAt \b 0)
+(def key-sym-to-key-with-modifiers {
+                                    :F2        [113 false false false false]
+                                    :Ctrl-C    [67 false true false false]
+                                    :ArrowDown [40 false false false false]
+                                    :Enter     [13 false false false false]
+                                    })
+;;keycode-and-flags [keycode alt-key ctrl-key shift-key meta-key]]
+(def key-with-modifiers-to-key-sym (set/map-invert key-sym-to-key-with-modifiers))
 
 (def ascii-to-letter-map (set/map-invert letter-to-ascii-map))
 
@@ -345,7 +352,15 @@
                       }
                :help {:msg "↓\t: Download the current command map to an edn file."}
                }
+   :Ctrl-C    {:fn   (fn [arg-map]
+                       (let []
+                         (set-mode :normal nil nil)
+                         (println "CNTRL-C - interrupting command. New version")
+                         (println-fld "command-window" "-- INTERRUPT! New version --\n"))
 
+                       )
+               :help {:msg "Ctrl-C\t: Abort command."}
+               :args {}}
    :n
               {:fn   (fn [arg-map]
                        (let [cmd-txtarea (. js/document getElementById "command-window")
@@ -445,6 +460,29 @@
       "default")))
 
 
+(defn print-key-from-event2 [event]
+  (let [k (.-key event)
+        ;cmd-txtarea (. js/document getElementById  "command-window")
+        keycode (.-keyCode event)
+        key-keyword (ascii-to-letter-map keycode)
+        key (.-key event)
+        alt-key (.-altKey event)
+        ctrl-key (.-ctrlKey event)
+        shift-key (.-shiftKey event)
+        meta-key (.-metaKey event)
+        keycode-and-flags [keycode alt-key ctrl-key shift-key meta-key]]
+    #_(println "KEY: " key
+               ", CODE" (.-code event)
+               ", KEYCODE" keycode
+               ", WHICH" (.-which event)
+               ", Alt, Cntr, Shift, Meta :::"
+               keycode-and-flags)
+    (println "keycode-and-flags: " keycode-and-flags)
+    keycode-and-flags
+    )
+  )
+
+
 (defn print-key-from-event [event]
   (let [k (.-key event)
         ;cmd-txtarea (. js/document getElementById  "command-window")
@@ -482,6 +520,82 @@
         app-cmds (:app-cmds app-cfg)
         merged-cmd-map (merge mui-cmd-map app-cmds)]
     (reset! mui-cmd-map-atom merged-cmd-map)))
+
+
+(defn mui-gui2
+  "This is the function that displays the actual Mui console. It will be
+  called by the application using Mui, not by anything within it so
+  the IDE may identify it as unused."
+  [app-cfg]
+  (let [mui-cmd-map-including-app-cmds
+        (merge-in-app-cmds app-cfg mui-cmd-map)
+        keystroke-handler
+        (fn [event]
+          (let [cmd-txtarea
+                (. js/document getElementById "command-window")
+                ;;keycode (.-keyCode event)
+                keycode-with-modifiers (print-key-from-event2 event)
+                key-keyword (key-with-modifiers-to-key-sym keycode-with-modifiers)
+                mui-cmd (mui-cmd-map-including-app-cmds key-keyword)]
+            (println ":on-key-up, cursor is at "
+                     (get-cursor-pos cmd-txtarea) ", mui-cmd: " mui-cmd ", key-keyword: " key-keyword)
+            (case (:mode @mui-state)
+              :normal (when mui-cmd
+                        (println "NORMAL MODE, Command Entered: " key-keyword)
+                        (set-mode :query mui-cmd key-keyword)
+                        (load-prompts cmd-txtarea))
+              :query (case key-keyword
+                       :Enter
+                       (try
+                         (let [current-arg (:current-arg @mui-state)
+                               arg-data (get-in @mui-state
+                                                [:query :args current-arg])
+                               arg-type (:type arg-data)
+                               conversion-fn (conversion-fn-map arg-type)
+                               arg-val (conversion-fn (subs
+                                                        (. cmd-txtarea -value)
+                                                        (:prompt-end
+                                                          @mui-state)))]
+                           (swap! mui-state assoc-in
+                                  [:query :args current-arg :val] arg-val)
+                           #_(command-buffer-clear)
+                           #_(load-prompts cmd-txtarea))
+                         (catch js/Object e (println e))
+                         (finally (do
+                                    (command-buffer-clear)
+                                    (load-prompts cmd-txtarea))))
+                       :Ctrl-C
+                       (let []
+                         (set-mode :normal nil nil)
+                         (println "CNTRL-C - interrupting command. New version")
+                         (println-fld "command-window" "-- INTERRUPT! New version --\n"))
+                       "default"))))]
+    [:div
+     [:div {:style {:width "45%" :margin "auto"}}
+      [gpu/upload-control {} js/alert]
+      [:label {:for "command-window"} "Command Entry: "]
+      [:textarea (merge (:command-window app-cfg)
+                        {:on-key-up   keystroke-handler
+                         :on-key-down filter-keystrokes
+                         :on-change   (fn [event]
+                                        (let [cmd-txtarea (. js/document getElementById
+                                                             "command-window")]
+                                          (println ":on-change, cursor is at "
+                                                   (get-cursor-pos cmd-txtarea))
+                                          (println "IMPLICITS: " '(:implicits app-cfg))
+                                          (swap! mui-state assoc
+                                                 :implicits (:implicits app-cfg))))})]]
+     [:div {:style {:width "45%" :margin "auto"}}
+      [:label {:for "history-window"} "Command History: "]
+      [:textarea (merge (:history-window mui-default-cfg)
+                        {:value    (prettify-history @command-history)
+                         :readOnly true})]]
+     [:div {:style {:width "45%" :margin "auto"}}
+      [:label {:for "help-window"} "Help: "]
+      [:textarea (merge (:history-window mui-default-cfg)
+                        {:value    (prettify-help mui-cmd-map-including-app-cmds)
+                         :readOnly true})]]]))
+
 
 
 (defn mui-gui
