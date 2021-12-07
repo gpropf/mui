@@ -565,9 +565,9 @@
   "This is the function that displays the actual Mui console. It will be
   called by the application using Mui, not by anything within it so
   the IDE may identify it as unused."
-  [app-cfg]
+  [mui-gui-cfg app-cmd-map]
   (let [mui-cmd-map-including-app-cmds
-        (merge-in-app-cmds app-cfg mui-cmd-map)
+        (merge-in-app-cmds app-cmd-map mui-cmd-map)
         keystroke-handler
         (fn [event]
           (let [cmd-txtarea
@@ -603,7 +603,7 @@
      [:div {:style {:width "45%" :margin "auto"}}
       [gpu/upload-control {} js/alert]
       [:label {:for "command-window"} "Command Entry: "]
-      [:textarea (merge (:command-window app-cfg)
+      [:textarea (merge (:command-window mui-gui-cfg)
                         {:on-key-up   keystroke-handler
                          :on-key-down filter-keystrokes
                          :on-change   (fn [event]
@@ -611,9 +611,9 @@
                                                              "command-window")]
                                          #_(println ":on-change, cursor is at "
                                                    (get-cursor-pos cmd-txtarea))
-                                         #_(println "IMPLICITS: " '(:implicits app-cfg))
+                                         #_(println "IMPLICITS: " '(:implicits app-cmd-map))
                                           (swap! mui-state assoc
-                                                 :implicits (:implicits app-cfg))))})]]
+                                                 :implicits (:implicits mui-gui-cfg))))})]]
      [:div {:style {:width "45%" :margin "auto"}}
       [:label {:for "history-window"} "Command History: "]
       [:textarea (merge (:history-window mui-default-cfg)
