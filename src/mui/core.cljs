@@ -36,11 +36,11 @@
 ;; This is how to do reflection - (:arglists (meta #'rasto.core/make-raster))
 
 
-(def letter-to-ascii-map {:b 66 :c 67 :F2 113 :Enter 13
+#_(def letter-to-ascii-map {:b 66 :c 67 :F2 113 :Enter 13
                           :n 78 :s 83 :d 68 :ArrowUp 38 :ArrowDown 40})
 
 
-(def key-sym-to-key-with-modifiers {
+(def key-sym-to-keystroke-map {
                                     :F2        [113 false false false false]
                                     :Ctrl-C    [67 false true false false]
                                     :ArrowDown [40 false false false false]
@@ -50,10 +50,14 @@
                                     :n [78 false false false false]
                                     :d [68 false false false false]
                                     })
-;;keycode-and-flags [keycode alt-key ctrl-key shift-key meta-key]]
-(def key-with-modifiers-to-key-sym (set/map-invert key-sym-to-key-with-modifiers))
 
-(def ascii-to-letter-map (set/map-invert letter-to-ascii-map))
+(def key-sym-to-keystroke-map-atom (atom key-sym-to-keystroke-map))
+
+
+
+#_(def ascii-to-letter-map (set/map-invert letter-to-ascii-map))
+
+;;(def key-with-modifiers-to-key-sym (set/map-invert key-sym-to-keystroke-map))
 
 
 (defonce mui-state (atom {:command-buffer ""
@@ -62,6 +66,14 @@
 
 (defonce application-defined-types (atom (sorted-map)))
 
+
+#_(defn rebuild-key-keystroke-maps [app-key-keystroke-map]
+  (swap! key-sym-to-keystroke-map-atom merge app-key-keystroke-map)
+  (reset! keystroke-to-key-sym-map-atom (set/map-invert @key-sym-to-keystroke-map-atom))
+(println "IN: rebuild-key-keystroke-maps..." )
+  (println "key-sym-to-keystroke-map-atom: " @key-sym-to-keystroke-map-atom )
+  (println "keystroke-to-key-sym-map-atom: " @keystroke-to-key-sym-map-atom)
+  )
 
 
 ;; mui-object-store: This is actually the memory of the mui language.
@@ -287,15 +299,26 @@
     (swap! application-defined-types assoc-in [obj-type :selection] obj-id)))
 
 
+(def cmd-maps-atom (atom {}))
 
-
-(defn rebuild-mui-cmd-map
+(def basic-cmd-maps
   "Prompts can now be functions that return text instead of static
   text. Any prompt whose text might change based on something that can
   change during a run should be a function so that it can build its
   text based on what's going on in the program."
-  []
-  {:Enter
+
+  {:key-sym-keystroke-map {
+                           :F2        [113 false false false false]
+                           :Ctrl-C    [67 false true false false]
+                           :ArrowDown [40 false false false false]
+                           :ArrowUp [38 false false false false]
+                           :Enter     [13 false false false false]
+                           :s [83 false false false false]
+                           :n [78 false false false false]
+                           :d [68 false false false false]
+                           }
+
+   :cmd-func-map {:Enter
               {:fn (fn [arg-map]
                      (let [_ (println "Running ENTER command form mui-cmd-map!!!!!")
                            cmd-txtarea (. js/document getElementById "command-window")]
@@ -379,7 +402,7 @@
                :help             {:msg "d\t: Delete currently selected object."}}
    :ArrowDown {:fn               (fn [arg-map]
                                    (let [download-filename (get-in arg-map [:download-filename :val])
-                                         data (rebuild-mui-cmd-map)
+                                         data @cmd-maps-atom
                                          data-map {:download-filename download-filename
                                                    :data              data}]
                                      (gpu/send-data data-map download-filename)
@@ -420,18 +443,28 @@
                :args
                                  {:t
                                   {:prompt (choose-type)
-                                   :type   :int}}}})
+                                   :type   :int}}}}})
 
-(def mui-cmd-map
+(reset! cmd-maps-atom basic-cmd-maps)
+
+(def keystroke-to-key-sym-map-atom (atom (set/map-invert (:key-sym-keystroke-map @cmd-maps-atom))))
+
+(defn build-cmd-maps [lower-level-cmd-maps upper-level-cmd-maps]
   ;"Basic Mui commands common to all applications, even those besides Rasto."
-  (atom (rebuild-mui-cmd-map)))
+  (let [ll-key-sym-keystroke-map (:key-sym-keystroke-map lower-level-cmd-maps)
+        ul-key-sym-keystroke-map (:key-sym-keystroke-map upper-level-cmd-maps)
+        ll-cmd-func-map (:cmd-func-map lower-level-cmd-maps)
+        ul-cmd-func-map (:cmd-func-map upper-level-cmd-maps)]
+    {:key-sym-keystroke-map (merge ll-key-sym-keystroke-map ul-key-sym-keystroke-map)
+     :cmd-func-map (merge ll-cmd-func-map ul-cmd-func-map)})
+  )
 
 
 (defn register-application-defined-type
   [type-name constructor-prompts]
   (swap! application-defined-types assoc type-name {:prompts   constructor-prompts
                                                     :selection nil})
-  (reset! mui-cmd-map (rebuild-mui-cmd-map)))
+  #_(reset! mui-cmd-map (rebuild-mui-cmd-map)))
 
 
 
@@ -503,7 +536,7 @@
   (let [k (.-key event)
         ;cmd-txtarea (. js/document getElementById  "command-window")
         keycode (.-keyCode event)
-        key-keyword (ascii-to-letter-map keycode)
+        ;key-keyword (ascii-to-letter-map keycode)
         key (.-key event)
         alt-key (.-altKey event)
         ctrl-key (.-ctrlKey event)
@@ -526,13 +559,13 @@
   (let [k (.-key event)
         ;cmd-txtarea (. js/document getElementById  "command-window")
         keycode (.-keyCode event)
-        key-keyword (ascii-to-letter-map keycode)
+        ;key-keyword (ascii-to-letter-map keycode)
         key (.-key event)
         alt-key (.-altKey event)
         ctrl-key (.-ctrlKey event)
         shift-key (.-shiftKey event)
         meta-key (.-metaKey event)
-        keycode-and-flags [key-keyword alt-key ctrl-key shift-key meta-key]]
+        keycode-and-flags [keycode alt-key ctrl-key shift-key meta-key]]
    #_(println "KEY: " key
              ", CODE" (.-code event)
              ", KEYCODE" keycode
@@ -542,6 +575,11 @@
     (println "print-key-from-event: keycode-and-flags: " keycode-and-flags)
     keycode-and-flags
     )
+  )
+
+(defn report-keys [args]
+  (println "REPORT-KEYS~!!!!!")
+  (mapv (fn [arg] (println "ARG:" (keys arg))) args)
   )
 
 
@@ -554,28 +592,34 @@
                     ) mui-cmd-map-including-app-cmds)))
 
 
-(defn merge-in-app-cmds [app-cfg mui-cmd-map-atom]
-  (let [mui-cmd-map @mui-cmd-map-atom
-        app-cmds (:app-cmds app-cfg)
-        merged-cmd-map (merge mui-cmd-map app-cmds)]
-    (reset! mui-cmd-map-atom merged-cmd-map)))
+#_(defn merge-in-app-cmds [app-cmd-map]
+  (let [
+        app-cmds (:app-cmds app-cmd-map)
+        ]
+    (swap! mui-cmd-map merge app-cmds)))
 
 
 (defn mui-gui2
   "This is the function that displays the actual Mui console. It will be
   called by the application using Mui, not by anything within it so
   the IDE may identify it as unused."
-  [mui-gui-cfg app-cmd-map]
-  (let [mui-cmd-map-including-app-cmds
-        (merge-in-app-cmds app-cmd-map mui-cmd-map)
+  [mui-gui-cfg app-cmd-maps]
+
+  (let [
+        ;;mui-cmd-map-including-app-cmds
+        ;;(merge-in-app-cmds app-cmd-map)
+
         keystroke-handler
         (fn [event]
+          #_(rebuild-key-keystroke-maps app-key-sym-to-keystroke-map)
           (let [cmd-txtarea
                 (. js/document getElementById "command-window")
-                ;;keycode (.-keyCode event)
+
                 keycode-with-modifiers (print-key-from-event2 event)
-                key-keyword (key-with-modifiers-to-key-sym keycode-with-modifiers)
-                mui-cmd (mui-cmd-map-including-app-cmds key-keyword)]
+                key-keyword (@keystroke-to-key-sym-map-atom keycode-with-modifiers)
+                mui-cmd ((:cmd-func-map @cmd-maps-atom) key-keyword)
+                ;_ (report-keys [mui-gui-cfg app-cmd-maps])
+                ]
             (println "keystroke-handler (mui-gui2) :on-key-up, cursor is at "
                      (get-cursor-pos cmd-txtarea) ", mui-cmd: " mui-cmd ", key-keyword: " key-keyword)
             (when mui-cmd
@@ -592,7 +636,7 @@
                 (let [active-in-query ((mui-cmd :active-in-states) :query)]
                   (println "mui-cmd is " key-keyword ", QUERY MODE, active-in-query: " active-in-query)
                   (when active-in-query
-                    (let [command-fn (get-in mui-cmd-map-including-app-cmds [key-keyword :fn])]
+                    (let [command-fn (get-in (:cmd-func-map @cmd-maps-atom) [key-keyword :fn])]
                       (command-fn)
                       )
                     #_(set-mode :normal nil nil)
@@ -622,18 +666,18 @@
      [:div {:style {:width "45%" :margin "auto"}}
       [:label {:for "help-window"} "Help: "]
       [:textarea (merge (:history-window mui-default-cfg)
-                        {:value    (prettify-help mui-cmd-map-including-app-cmds)
+                        {:value    (prettify-help (:cmd-func-map @cmd-maps-atom))
                          :readOnly true})]]]))
 
 
 
-(defn mui-gui
+#_(defn mui-gui
   "This is the function that displays the actual Mui console. It will be
   called by the application using Mui, not by anything within it so
   the IDE may identify it as unused."
   [app-cfg]
   (let [mui-cmd-map-including-app-cmds
-        (merge-in-app-cmds app-cfg mui-cmd-map)
+        (merge-in-app-cmds app-cfg)
         keystroke-handler
         (fn [event]
           (let [cmd-txtarea

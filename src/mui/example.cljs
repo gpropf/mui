@@ -27,7 +27,7 @@
                                              :class ""
                                              ;:default-value ""
                                              }
-                            :app-cmds {}
+
                             }})
 
 
