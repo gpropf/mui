@@ -22,7 +22,7 @@
     [clojure.set :as set]
     [cljs.pprint :as pp :refer [pprint]]
     [gputils.core :as gpu]
-    ;[cljs.js]
+
     ))
 
 #_(def state (cljs.js/empty-state))
@@ -40,7 +40,7 @@
                           :n 78 :s 83 :d 68 :ArrowUp 38 :ArrowDown 40})
 
 
-(def key-sym-to-keystroke-map {
+#_(def key-sym-to-keystroke-map {
                                     :F2        [113 false false false false]
                                     :Ctrl-C    [67 false true false false]
                                     :ArrowDown [40 false false false false]
@@ -51,7 +51,7 @@
                                     :d [68 false false false false]
                                     })
 
-(def key-sym-to-keystroke-map-atom (atom key-sym-to-keystroke-map))
+#_(def key-sym-to-keystroke-map-atom (atom key-sym-to-keystroke-map))
 
 
 
@@ -455,6 +455,7 @@
         ul-key-sym-keystroke-map (:key-sym-keystroke-map upper-level-cmd-maps)
         ll-cmd-func-map (:cmd-func-map lower-level-cmd-maps)
         ul-cmd-func-map (:cmd-func-map upper-level-cmd-maps)]
+
     {:key-sym-keystroke-map (merge ll-key-sym-keystroke-map ul-key-sym-keystroke-map)
      :cmd-func-map (merge ll-cmd-func-map ul-cmd-func-map)})
   )
@@ -604,11 +605,12 @@
   called by the application using Mui, not by anything within it so
   the IDE may identify it as unused."
   [mui-gui-cfg app-cmd-maps]
-
+  (reset! cmd-maps-atom (build-cmd-maps basic-cmd-maps app-cmd-maps))
   (let [
         ;;mui-cmd-map-including-app-cmds
         ;;(merge-in-app-cmds app-cmd-map)
-
+        _ (reset! cmd-maps-atom (build-cmd-maps basic-cmd-maps app-cmd-maps))
+        _ (reset! keystroke-to-key-sym-map-atom (set/map-invert (:key-sym-keystroke-map @cmd-maps-atom)))
         keystroke-handler
         (fn [event]
           #_(rebuild-key-keystroke-maps app-key-sym-to-keystroke-map)
