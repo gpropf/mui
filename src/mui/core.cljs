@@ -214,7 +214,7 @@
 
 
 (defn prepare-query-for-history [query]
-  (let [query' (dissoc query :fn :help)
+  (let [query' (dissoc query :fn :help :active-in-states)
         args (:args query')
         args' (into {} (map (fn [[arg arg-data]]
                               [arg (:val arg-data)]) args))]
