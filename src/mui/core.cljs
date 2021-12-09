@@ -442,7 +442,7 @@
                :active-in-states (set [:normal])
                :args
                                  {:t
-                                  {:prompt (choose-type)
+                                  {:prompt #(choose-type)
                                    :type   :int}}}}})
 
 (reset! cmd-maps-atom basic-cmd-maps)
@@ -450,14 +450,15 @@
 (def keystroke-to-key-sym-map-atom (atom (set/map-invert (:key-sym-keystroke-map @cmd-maps-atom))))
 
 (defn build-cmd-maps [lower-level-cmd-maps upper-level-cmd-maps]
-  ;"Basic Mui commands common to all applications, even those besides Rasto."
+
   (let [ll-key-sym-keystroke-map (:key-sym-keystroke-map lower-level-cmd-maps)
         ul-key-sym-keystroke-map (:key-sym-keystroke-map upper-level-cmd-maps)
         ll-cmd-func-map (:cmd-func-map lower-level-cmd-maps)
-        ul-cmd-func-map (:cmd-func-map upper-level-cmd-maps)]
-
-    {:key-sym-keystroke-map (merge ll-key-sym-keystroke-map ul-key-sym-keystroke-map)
-     :cmd-func-map (merge ll-cmd-func-map ul-cmd-func-map)})
+        ul-cmd-func-map (:cmd-func-map upper-level-cmd-maps)
+        merged-cmd-maps {:key-sym-keystroke-map (merge ll-key-sym-keystroke-map ul-key-sym-keystroke-map)
+                         :cmd-func-map (merge ll-cmd-func-map ul-cmd-func-map)}]
+    #_(println "build-cmd-maps: " merged-cmd-maps)
+    merged-cmd-maps)
   )
 
 
@@ -622,6 +623,7 @@
                 mui-cmd ((:cmd-func-map @cmd-maps-atom) key-keyword)
                 ;_ (report-keys [mui-gui-cfg app-cmd-maps])
                 ]
+            (reset! cmd-maps-atom (build-cmd-maps basic-cmd-maps app-cmd-maps))
             (println "keystroke-handler (mui-gui2) :on-key-up, cursor is at "
                      (get-cursor-pos cmd-txtarea) ", mui-cmd: " mui-cmd ", key-keyword: " key-keyword)
             (when mui-cmd
@@ -645,9 +647,9 @@
                     #_(load-prompts cmd-txtarea)))
                 )
               )))]
-    [:div
+    [:div {:id "mui-gui"}
      [:div {:style {:width "45%" :margin "auto"}}
-      [gpu/upload-control {} js/alert]
+      #_[gpu/upload-control {} js/alert]
       [:label {:for "command-window"} "Command Entry: "]
       [:textarea (merge (:command-window mui-gui-cfg)
                         {:on-key-up   keystroke-handler
