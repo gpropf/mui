@@ -164,36 +164,53 @@
         args' (into {} (map (fn [[arg arg-data]]
                               [arg (:val arg-data)]) args))]
     (assoc query' :args args')))
-;; Pick up cleanup here 12-15-21
 
-(defn add-to-history [args]
-  (println "Trying to add " args " to hist")
+
+(defn add-to-history
+  "Simple function to tack an action to the end of the history queue."
+  [args]
+  #_(println "Trying to add " args " to hist")
   (swap! command-history conj (prepare-query-for-history args)))
 
 
-(defn present-prompt [arg-data textarea-element]
+(defn present-prompt
+  "Print one of the questions to ask the user for a parameter value in the
+   command shell. The prompt may be a literal or a function. If a function the
+   value of the function is printed."
+  [arg-data textarea-element]
   (let [prompt (:prompt arg-data)
         prompt-text (if (= (type prompt) (type (fn [])))
                       (apply prompt ())
                       prompt)]
-
     (println-fld "command-window" (str prompt-text " "))
     (swap! mui-state assoc :prompt-end (.-selectionStart textarea-element))))
 
 
-(defn set-mode [mode query-map key-keyword]
+(defn set-mode
+  "Switches back and forth between 'normal' and 'query' mode. Also loads the
+   :query field of mui-state with the map of questions and tells us whether to
+   return immediately to normal. Some commands piggy-back on others (like the
+   'new' command) and so you want the system to stay in :query mode after the
+   initial command executes."
+  [mode query-map key-keyword]
   (let []
-    (println "CALLED: set-mode (mode, query-map, command-key): " [mode query-map key-keyword])
+    #_(println "CALLED: set-mode (mode, query-map, command-key): " [mode query-map key-keyword])
     (swap! mui-state assoc
            :return-to-normal true
            :mode mode
            :query (assoc query-map :command-key key-keyword))))
 
 
-(defn load-prompts [textarea-element]
+(defn load-prompts
+  "This function grabs the args for a given command and then presents the user
+   with the first prompt that does not already have a :val key, meaning the
+   first arg that has not yet been filled in by the user answering a prompt.
+   The :fn in the :Enter key in :cmd-func-map is what keeps us cycling through
+   the prompts until all args have concrete values."
+  [textarea-element]
   (println "LOAD PROMPTS CALLED !!!!!!!!!!!!!! Trying to add " " to hist")
   (let [query-args (get-in @mui-state [:query :args])
-        args-to-get (filter (fn [[arg arg-data]]
+        args-to-get (filter (fn [[_ arg-data]]
                               (nil? (:val arg-data))) query-args)
         [arg arg-data] (first args-to-get)]
     (swap! mui-state assoc :current-arg arg)
@@ -201,13 +218,13 @@
       (do (println "ARG-DATA FOUND: " arg-data)
           (present-prompt arg-data textarea-element))
       (let [command-fn (get-in @mui-state [:query :fn])
-            args (get-in @mui-state [:query :args])]
+            ;args (get-in @mui-state [:query :args])
+            ]
         (println "Mui-STATE: redacted "                     ;; @mui-state
                  "FN: " command-fn
-                 "\nARGS: " args)
-
+                 "\nARGS: " (pprint query-args))
         (add-to-history (:query @mui-state))
-        (when command-fn (command-fn args))
+        (when command-fn (command-fn query-args))
         ; ^^^ This is important! ^^^
         ; This is where the commands are run with their arguments.
         (when (:return-to-normal @mui-state)
