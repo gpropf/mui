@@ -29,11 +29,15 @@
     (cljs.js/eval-str state source nil {:eval cljs.js/js-eval :context :expr} cb))
 ;; This is how to do reflection - (:arglists (meta #'rasto.core/make-raster))
 
+
+;; mui-state: Basically persistent state for the mui widget. Currently, distinct from
+;; other mutable data.
 (defonce mui-state (atom {:command-buffer ""
                           :mode           :normal
                           :query          {}}))
 
 
+;; application-defined-types: Map of the types we can use.
 (defonce application-defined-types (atom (sorted-map)))
 
 
@@ -44,6 +48,15 @@
 ;; structures.
 (defonce mui-object-store
          (atom (sorted-map)))
+
+
+(defonce mui-object-store-ids (atom (sorted-map)))
+;; Add the set of identifiers so that we don't need the object type to retrieve it.
+;; Also used to make certain that everything in the system has a unique id. We store
+;; the object's type as the val in the key/val pair. So when we get a request for an id
+;; it will tell us the type. Then we can fetch the object from the object-store using
+;; the id and the type.
+#_(swap! mui-object-store assoc :obj-ids (sorted-set))
 
 
 ;; mui-default-cfg: basically a few simple styles that keep the Mui
@@ -437,8 +450,25 @@
    for the id of the parent node. Also sets the selection for this type of
    object to the newly interred object."
   [obj obj-type obj-id parent-obj-id]
-  (do (swap! mui-object-store assoc-in [obj-type obj-id] {:obj obj :parent-obj-id parent-obj-id})
-      (select-object obj-type obj-id)))
+  (let [obj-id-set @mui-object-store-ids
+        obj-id-set' (conj @mui-object-store-ids {obj-id obj-type})]
+    (if (= obj-id-set obj-id-set')
+      (println "ERROR: identifier already in use!")         ;; FIXME: needs to throw exception.
+      (do
+        (reset! mui-object-store-ids obj-id-set')
+        (swap! mui-object-store assoc-in [obj-type obj-id] {:obj obj :parent-obj-id parent-obj-id})
+        (select-object obj-type obj-id)))))
+
+
+(defn get-object-from-object-store
+  "Returns the object with the id given by obj-id. Using the second form of
+   the function is faster if you know the type."
+  ([obj-id]
+   (let [obj-type (get @mui-object-store-ids obj-id)]
+     (get-object-from-object-store obj-id obj-type)))
+  ([obj-id obj-type]
+   (get-in @mui-object-store [obj-type obj-id])))
+
 
 ;; tickets: Just a simple way to generate unique ids.
 (def tickets (atom 0))
