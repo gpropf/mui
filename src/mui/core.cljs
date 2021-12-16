@@ -593,11 +593,7 @@
       [:textarea (merge (:command-window mui-gui-cfg)
                         {:on-key-up   keystroke-handler
                          :on-key-down filter-keystrokes
-                         :on-change   (fn [event]
-                                        (let [cmd-txtarea (. js/document getElementById
-                                                             "command-window")]
-                                          (swap! mui-state assoc
-                                                 :implicits (:implicits mui-gui-cfg))))})]]
+                         :on-change   (fn [event])})]]
      [:div {:style {:width "45%" :margin "auto"}}
       [:label {:for "history-window"} "Command History: "]
       [:textarea (merge (:history-window mui-default-cfg)
