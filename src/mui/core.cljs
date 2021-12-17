@@ -279,6 +279,36 @@
   (let []
     (swap! application-defined-types assoc-in [obj-type :selection] obj-id)))
 
+
+
+#_(defn serialize-selected-data
+  "This function takes a list of keys that represent the names of the global
+   maps that represent everything from the commands we can use in a Mui app to
+   the actual data from a given run of the app. The idea is that we generally
+   *should not* save everything in the same file but rather use a 'layered'
+   structure to load a file. So we would load an 'app-template' which would
+   hold the app-cmd-map and application-defined-types for a given application.
+   Then perhaps we would load the mui-object-store to replicate a given file.
+   Alternately, we could load the command history and replay it to do that.
+   Perhaps a transformation could be applied to the commands to change file in
+   some odd way."
+  [set-of-keys-to-serialize]
+  {
+   :mui-state (if (set-of-keys-to-serialize :mui-state) mui-state nil)
+   :application-defined-types (if (set-of-keys-to-serialize :application-defined-types) application-defined-types nil)
+   :mui-object-store (if (set-of-keys-to-serialize :mui-object-store) mui-object-store nil)
+   :mui-object-store-ids (if (set-of-keys-to-serialize :mui-object-store-ids) mui-object-store-ids nil)
+   :command-history (if (set-of-keys-to-serialize :command-history) command-history nil)
+   :cmd-maps-atom (if (set-of-keys-to-serialize :cmd-maps-atom) cmd-maps-atom nil)
+   :keystroke-to-key-sym-map-atom (if (set-of-keys-to-serialize :keystroke-to-key-sym-map-atom) keystroke-to-key-sym-map-atom nil)
+   :tickets (if (set-of-keys-to-serialize :tickets) tickets nil)
+
+
+   }
+
+  )
+
+
 ;; cmd-maps-atom: The command maps are modifiable at runtime by the user
 ;; and can also be loaded in from a file.
 (def cmd-maps-atom (atom {}))
@@ -372,7 +402,7 @@
                                        :help             {:msg "d\t: Delete currently selected object."}}
                            :ArrowDown {:fn               (fn [arg-map]
                                                            (let [download-filename (get-in arg-map [:download-filename :val])
-                                                                 data @cmd-maps-atom
+                                                                 data @cmd-maps-atom  #_(serialize-selected-data #{:cmd-maps-atom})
                                                                  data-map {:download-filename download-filename
                                                                            :data              data}]
                                                              (gpu/send-data data-map download-filename)))
@@ -534,9 +564,6 @@
     keycode-and-flags))
 
 
-#_(defn report-keys [args]
-    (println "REPORT-KEYS~!!!!!")
-    (mapv (fn [arg] (println "ARG:" (keys arg))) args))
 
 
 (defn prettify-help
