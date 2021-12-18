@@ -280,8 +280,20 @@
     (swap! application-defined-types assoc-in [obj-type :selection] obj-id)))
 
 
+;; cmd-maps-atom: The command maps are modifiable at runtime by the user
+;; and can also be loaded in from a file.
+(def cmd-maps-atom (atom {}))
 
-#_(defn serialize-selected-data
+
+(def keystroke-to-key-sym-map-atom
+  (atom (set/map-invert (:key-sym-keystroke-map @cmd-maps-atom))))
+
+
+;; tickets: Just a simple way to generate unique ids.
+(def tickets (atom 0))
+
+
+(defn serialize-selected-data
   "This function takes a list of keys that represent the names of the global
    maps that represent everything from the commands we can use in a Mui app to
    the actual data from a given run of the app. The idea is that we generally
@@ -294,24 +306,20 @@
    some odd way."
   [set-of-keys-to-serialize]
   {
-   :mui-state (if (set-of-keys-to-serialize :mui-state) mui-state nil)
-   :application-defined-types (if (set-of-keys-to-serialize :application-defined-types) application-defined-types nil)
-   :mui-object-store (if (set-of-keys-to-serialize :mui-object-store) mui-object-store nil)
-   :mui-object-store-ids (if (set-of-keys-to-serialize :mui-object-store-ids) mui-object-store-ids nil)
-   :command-history (if (set-of-keys-to-serialize :command-history) command-history nil)
-   :cmd-maps-atom (if (set-of-keys-to-serialize :cmd-maps-atom) cmd-maps-atom nil)
+   :mui-state                     (if (set-of-keys-to-serialize :mui-state) mui-state nil)
+   :application-defined-types     (if (set-of-keys-to-serialize :application-defined-types) application-defined-types nil)
+   :mui-object-store              (if (set-of-keys-to-serialize :mui-object-store) mui-object-store nil)
+   :mui-object-store-ids          (if (set-of-keys-to-serialize :mui-object-store-ids) mui-object-store-ids nil)
+   :command-history               (if (set-of-keys-to-serialize :command-history) command-history nil)
+   :cmd-maps-atom                 (if (set-of-keys-to-serialize :cmd-maps-atom) cmd-maps-atom nil)
    :keystroke-to-key-sym-map-atom (if (set-of-keys-to-serialize :keystroke-to-key-sym-map-atom) keystroke-to-key-sym-map-atom nil)
-   :tickets (if (set-of-keys-to-serialize :tickets) tickets nil)
-
+   :tickets                       (if (set-of-keys-to-serialize :tickets) tickets nil)
 
    }
 
   )
 
 
-;; cmd-maps-atom: The command maps are modifiable at runtime by the user
-;; and can also be loaded in from a file.
-(def cmd-maps-atom (atom {}))
 
 (def basic-cmd-maps
   "Prompts can now be functions that return text instead of static
@@ -402,7 +410,13 @@
                                        :help             {:msg "d\t: Delete currently selected object."}}
                            :ArrowDown {:fn               (fn [arg-map]
                                                            (let [download-filename (get-in arg-map [:download-filename :val])
-                                                                 data @cmd-maps-atom  #_(serialize-selected-data #{:cmd-maps-atom})
+                                                                 data #_@cmd-maps-atom
+                                                                 (serialize-selected-data
+                                                                   #{:mui-state :tickets
+                                                                     :application-defined-types :mui-object-store
+                                                                     :mui-object-store-ids :command-history
+                                                                     :cmd-maps-atom :keystroke-to-key-sym-map-atom
+                                                                     })
                                                                  data-map {:download-filename download-filename
                                                                            :data              data}]
                                                              (gpu/send-data data-map download-filename)))
@@ -443,8 +457,7 @@
 ;; [keycode alt-key ctrl-key shift-key meta-key]. This should uniquely identify
 ;; which command we want. This inverse mapping takes that 5-vec and converts
 ;; it into a command keyword.
-(def keystroke-to-key-sym-map-atom
-  (atom (set/map-invert (:key-sym-keystroke-map @cmd-maps-atom))))
+
 
 
 (defn build-cmd-maps
@@ -499,9 +512,6 @@
   ([obj-id obj-type]
    (get-in @mui-object-store [obj-type obj-id])))
 
-
-;; tickets: Just a simple way to generate unique ids.
-(def tickets (atom 0))
 
 
 (defn prettify-history
