@@ -277,7 +277,8 @@
   "Sets the selection for a given type of object in the object store."
   [obj-type obj-id]
   (let []
-    (swap! application-defined-types assoc-in [obj-type :selection] obj-id)))
+    (swap! application-defined-types assoc-in [obj-type :selection] obj-id)
+    (swap! mui-state assoc :selected-object-identifiers [obj-type obj-id])))
 
 
 ;; cmd-maps-atom: The command maps are modifiable at runtime by the user
