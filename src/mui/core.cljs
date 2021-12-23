@@ -178,7 +178,7 @@
   "Removes parts of the query that are not relevant for purposes of playback
    and reconstruction of sessions."
   [query]
-  (let [query' (dissoc query :fn :help :active-in-states)
+  (let [query' (dissoc query :fn :help :active-in-states :selected-object)
         args (:args query')
         args' (into {} (map (fn [[arg arg-data]]
                               [arg (:val arg-data)]) args))]
@@ -233,14 +233,15 @@
         args-to-get (filter (fn [[_ arg-data]]
                               (nil? (:val arg-data))) query-args)
         [arg arg-data] (first args-to-get)]
+    (println "LOAD-PROMPTS!")
     (swap! mui-state assoc :current-arg arg)
     (if arg-data
-      (do #_(println "ARG-DATA FOUND: " arg-data)
-        (present-prompt arg-data textarea-element))
+      (do (println "ARG-DATA FOUND: " arg-data)
+          (present-prompt arg-data textarea-element))
       (let [command-fn (get-in @mui-state [:query :fn])]
-        #_(println "Mui-STATE: redacted "                   ;; @mui-state
-                   "FN: " command-fn
-                   "\nARGS: " (pprint query-args))
+        (println "Mui-STATE: redacted "                     ;; @mui-state
+                 "FN: " command-fn
+                 "\nARGS: " (pprint query-args))
         (add-to-history (:query @mui-state))
         (when command-fn (command-fn query-args))
         ; ^^^ This is important! ^^^
@@ -320,6 +321,15 @@
 
   )
 
+
+(defn get-object-from-object-store
+  "Returns the object with the id given by obj-id. Using the second form of
+   the function is faster if you know the type."
+  ([obj-id]
+   (let [obj-type (get @mui-object-store-ids obj-id)]
+     (get-object-from-object-store obj-type obj-id)))
+  ([obj-type obj-id]
+   (get-in @mui-object-store [obj-type obj-id])))
 
 
 (def basic-cmd-maps
@@ -402,8 +412,21 @@
                            :d         {:fn               (fn [arg-map]
                                                            (let [cmd-txtarea (. js/document getElementById "command-window")
                                                                  yes-or-no (get-in arg-map [:confirm :val])
-                                                                 ]
-                                                             #_(println "Would Delete currently selected object?: " yes-or-no)))
+                                                                 [selected-obj-type selected-obj-id] (:selected-object-identifiers @mui-state)
+                                                                 selected-object (get-object-from-object-store selected-obj-type selected-obj-id)
+                                                                 delete-object-query (assoc (get-in @application-defined-types [selected-obj-type :prompts :delete]) :args {:selected-obj-id {:val selected-obj-id}})]
+
+
+                                                             (when (= "Y" yes-or-no)
+                                                               (do
+                                                                 (println "USER ANSWERS 'Y' TO DELETE QUERY!!!")
+                                                                 (set-mode :query delete-object-query :dobj)
+                                                                 (println "DELETE-OBJ-QUERY:" delete-object-query)
+                                                                 (swap! mui-state assoc :return-to-normal true)
+                                                                 (load-prompts cmd-txtarea)
+                                                                 #_(load-prompts cmd-txtarea))
+                                                               )
+                                                             ))
                                        :active-in-states (set [:normal])
                                        :args             {:confirm
                                                           {:prompt (fn [] (confirm-action true))
@@ -504,14 +527,7 @@
         (select-object obj-type obj-id)))))
 
 
-(defn get-object-from-object-store
-  "Returns the object with the id given by obj-id. Using the second form of
-   the function is faster if you know the type."
-  ([obj-id]
-   (let [obj-type (get @mui-object-store-ids obj-id)]
-     (get-object-from-object-store obj-id obj-type)))
-  ([obj-id obj-type]
-   (get-in @mui-object-store [obj-type obj-id])))
+
 
 
 
