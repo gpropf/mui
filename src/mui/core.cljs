@@ -332,6 +332,17 @@
    (get-in @mui-object-store [obj-type obj-id])))
 
 
+(defn delete-object-from-object-store
+  ([obj-id]
+   (let [[obj-type obj-id] (get-object-from-object-store obj-id)]
+     (delete-object-from-object-store obj-type obj-id)))
+  ([obj-type obj-id]
+   (println (str "(delete-object-from-object-store " obj-type " " obj-id ")"))
+   (swap! mui-object-store update obj-type dissoc obj-id)
+   (swap! mui-object-store-ids dissoc obj-id))
+  )
+
+
 (def basic-cmd-maps
   "Prompts can now be functions that return text instead of static
   text. Any prompt whose text might change based on something that can
@@ -414,7 +425,13 @@
                                                                  yes-or-no (get-in arg-map [:confirm :val])
                                                                  [selected-obj-type selected-obj-id] (:selected-object-identifiers @mui-state)
                                                                  selected-object (get-object-from-object-store selected-obj-type selected-obj-id)
-                                                                 delete-object-query (assoc (get-in @application-defined-types [selected-obj-type :prompts :delete]) :args {:selected-obj-id {:val selected-obj-id}})]
+                                                                 delete-object-query
+                                                                 (assoc
+                                                                   (get-in
+                                                                     @application-defined-types
+                                                                     [selected-obj-type :prompts :delete])
+                                                                   :args {:selected-obj-id {:val selected-obj-id}
+                                                                          :selected-obj-type {:val selected-obj-type}})]
 
 
                                                              (when (= "Y" yes-or-no)
@@ -424,6 +441,8 @@
                                                                  (println "DELETE-OBJ-QUERY:" delete-object-query)
                                                                  (swap! mui-state assoc :return-to-normal true)
                                                                  (load-prompts cmd-txtarea)
+                                                                 (println "load-prompts COMPLETED!")
+                                                                 (delete-object-from-object-store selected-obj-type selected-obj-id)
                                                                  #_(load-prompts cmd-txtarea))
                                                                )
                                                              ))
