@@ -83,6 +83,7 @@
                                    (when (js/isNaN parsed-int)
                                      (throw "Bad input for integer!"))
                                    parsed-int)
+                        :int-list #(let [nums-as-text (str/split % #"[ ;,\n\t]")] nums-as-text)
                         :float  #(let [parsed-float (js/parseFloat %)]
                                    (when (js/isNaN parsed-float)
                                      (throw "Bad input for float!"))
@@ -278,7 +279,7 @@
   "Sets the selection for a given type of object in the object store."
   [obj-type obj-id]
   (let []
-    (swap! application-defined-types assoc-in [obj-type :selection] obj-id)
+    #_(swap! application-defined-types assoc-in [obj-type :selection] obj-id)
     (swap! mui-state assoc :selected-object-identifiers [obj-type obj-id])))
 
 
@@ -527,7 +528,8 @@
   "Let Mui know about a new type that can be instantiated, destroyed, etc..."
   [type-name constructor-prompts]
   (swap! application-defined-types assoc type-name {:prompts   constructor-prompts
-                                                    :selection nil}))
+                                                    ;;:selection nil
+                                                    }))
 
 
 (defn add-object-to-object-store
