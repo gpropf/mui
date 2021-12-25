@@ -79,25 +79,26 @@
 
 ;; conversion-fn-map: Tells the system how to turn raw text into various forms
 ;; of typed data.
-(def conversion-fn-map {:int    #(let [parsed-int (js/parseInt %)]
-                                   (when (js/isNaN parsed-int)
-                                     (throw "Bad input for integer!"))
-                                   parsed-int)
-                        :int-list #(let [nums-as-text (str/split % #"[ ;,\n\t]")] nums-as-text)
-                        :float  #(let [parsed-float (js/parseFloat %)]
-                                   (when (js/isNaN parsed-float)
-                                     (throw "Bad input for float!"))
-                                   parsed-float)
-                        :yn     #(let [trimmed-input (str/trim %1)]
-                                   (case trimmed-input
-                                     ("y" "Y") "Y"
-                                     ("n" "N") "N"
-                                     (throw "Only 'y' or 'n' answers allowed!")
-                                     ))                     ;; FIXME, needs default answer support.
-                        :string #(let []
-                                   (when (empty? (str/trim %1))
-                                     (throw "Empty strings not allowed!")
-                                     ) (str/trim %1))})
+(def conversion-fn-map {:int      #(let [parsed-int (js/parseInt %)]
+                                     (when (js/isNaN parsed-int)
+                                       (throw "Bad input for integer!"))
+                                     parsed-int)
+                        :int-list #(let [nums-as-text (str/split % #"[ ;,\n\t]")
+                                         nums (map (conversion-fn-map :int) nums-as-text)] nums)
+                        :float    #(let [parsed-float (js/parseFloat %)]
+                                     (when (js/isNaN parsed-float)
+                                       (throw "Bad input for float!"))
+                                     parsed-float)
+                        :yn       #(let [trimmed-input (str/trim %1)]
+                                     (case trimmed-input
+                                       ("y" "Y") "Y"
+                                       ("n" "N") "N"
+                                       (throw "Only 'y' or 'n' answers allowed!")
+                                       ))                   ;; FIXME, needs default answer support.
+                        :string   #(let []
+                                     (when (empty? (str/trim %1))
+                                       (throw "Empty strings not allowed!")
+                                       ) (str/trim %1))})
 
 
 (defn prettify-list-to-string
@@ -279,14 +280,17 @@
   "Sets the selection for a given type of object in the object store."
   [obj-type obj-id]
   (let []
-    #_(swap! application-defined-types assoc-in [obj-type :selection] obj-id)
+    (swap! application-defined-types assoc-in [obj-type :selection] obj-id)
     (swap! mui-state assoc :selected-object-identifiers [obj-type obj-id])))
+
+
+
+
 
 
 ;; cmd-maps-atom: The command maps are modifiable at runtime by the user
 ;; and can also be loaded in from a file.
 (def cmd-maps-atom (atom {}))
-
 
 (def keystroke-to-key-sym-map-atom
   (atom (set/map-invert (:key-sym-keystroke-map @cmd-maps-atom))))
@@ -342,6 +346,19 @@
    (swap! mui-object-store update obj-type dissoc obj-id)
    (swap! mui-object-store-ids dissoc obj-id))
   )
+
+
+(defn get-selected-object-by-type [obj-type]
+  (let [obj-id (get-in @application-defined-types [obj-type :selection])]
+    (get-object-from-object-store obj-type obj-id)
+    )
+  )
+
+
+
+(defn get-selected-object-global []
+  (let [[obj-type obj-id] (@mui-state :selected-object-identifiers)]
+    (get-object-from-object-store obj-type obj-id)))
 
 
 (def basic-cmd-maps
@@ -431,7 +448,7 @@
                                                                    (get-in
                                                                      @application-defined-types
                                                                      [selected-obj-type :prompts :delete])
-                                                                   :args {:selected-obj-id {:val selected-obj-id}
+                                                                   :args {:selected-obj-id   {:val selected-obj-id}
                                                                           :selected-obj-type {:val selected-obj-type}})]
 
 
@@ -527,7 +544,7 @@
 (defn register-application-defined-type
   "Let Mui know about a new type that can be instantiated, destroyed, etc..."
   [type-name constructor-prompts]
-  (swap! application-defined-types assoc type-name {:prompts   constructor-prompts
+  (swap! application-defined-types assoc type-name {:prompts constructor-prompts
                                                     ;;:selection nil
                                                     }))
 
