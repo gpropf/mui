@@ -169,9 +169,18 @@
   "Prints the text into a certain input field. The field is a JS field
   object extracted from the DOM."
   [field text]
-  (let [sh (.-scrollHeight field)]
-    (append-to-field field (str "\n" text))
-    (set! (. field -scrollTop) sh))
+  (append-to-field field (str "\n" text))
+  (let [;; sh (. field -scrollHeight )
+        ;; ch (.-clientHeight field)
+        ;; st (.-scrollTop field)
+        ;; sh-ch (- sh ch)
+        js-eval-code "cw = document.getElementById('command-window'); cw.scrollTop = cw.scrollHeight - cw.clientHeight;"
+        ;; ^^^ FIXME: doing a js/eval is the wrong thing but the cljs code for this isn't working.
+        ]
+    #_(println "sh: " sh ", ch: " ch ", st: " st ", sh - ch = " sh-ch)
+    #_(println (.keys js/Object field))
+    #_(set! (. field -scrollTop) sh-ch)
+    (js/eval js-eval-code))
   ;; FIXME: This ^^ doesn't work to keep the textarea scrolled
   )
 
@@ -185,6 +194,16 @@
         args' (into {} (map (fn [[arg arg-data]]
                               [arg (:val arg-data)]) args))]
     (assoc query' :args args')))
+
+
+(defn prepare-history-query-to-rerun
+  "Takes a line from the history list and puts the {:val value} part back in
+  so it can be run through the command processor again."
+  [query]
+  (let [argmap (query :args)
+        argmap' (into {} (map (fn [[k v]] [k {:val v}]) argmap))]
+    (assoc query :args argmap')))
+
 
 
 (defn add-to-history
@@ -221,7 +240,7 @@
            :query (assoc query-map :command-key key-keyword))))
 
 
-(defn load-prompts
+(defn prompt-user-and-run-command
   "This function grabs the args for a given command and then presents the user
    with the first prompt that does not already have a :val key, meaning the
    first arg that has not yet been filled in by the user answering a prompt.
@@ -398,7 +417,7 @@
                                                                (catch js/Object e (println e))
                                                                (finally (do
                                                                           (command-buffer-clear)
-                                                                          (load-prompts cmd-txtarea))))))
+                                                                          (prompt-user-and-run-command cmd-txtarea))))))
                                        :args             {}
                                        :help             nil
                                        :active-in-states (set [:query])}
@@ -455,13 +474,13 @@
                                                              (when (= "Y" yes-or-no)
                                                                (do
                                                                  (println "USER ANSWERS 'Y' TO DELETE QUERY!!!")
-                                                                 (set-mode :query delete-object-query :dobj)
+                                                                 (set-mode :query delete-object-query :d-cont)
                                                                  (println "DELETE-OBJ-QUERY:" delete-object-query)
                                                                  (swap! mui-state assoc :return-to-normal true)
-                                                                 (load-prompts cmd-txtarea)
-                                                                 (println "load-prompts COMPLETED!")
+                                                                 (prompt-user-and-run-command cmd-txtarea)
+                                                                 (println "prompt-user-and-run-command COMPLETED!")
                                                                  (delete-object-from-object-store selected-obj-type selected-obj-id)
-                                                                 #_(load-prompts cmd-txtarea))
+                                                                 #_(prompt-user-and-run-command cmd-txtarea))
                                                                )
                                                              ))
                                        :active-in-states (set [:normal])
@@ -499,11 +518,11 @@
                                                                  user-selection-index (get-in arg-map [:t :val])
                                                                  selected-type-name (nth (keys @application-defined-types) user-selection-index)
                                                                  new-object-query (get-in @application-defined-types [selected-type-name :prompts :new])]
-                                                             (set-mode :query new-object-query :nb)
+                                                             (set-mode :query new-object-query :n-cont)
                                                              ;; We don't return to normal mode so the queries for the
                                                              ;; constructor args will be processed.
                                                              (swap! mui-state assoc :return-to-normal false)
-                                                             (load-prompts cmd-txtarea)))
+                                                             (prompt-user-and-run-command cmd-txtarea)))
                                        :help             {:msg "n\t: Create a new object."}
                                        :active-in-states (set [:normal])
                                        :args
@@ -520,7 +539,6 @@
 ;; it into a command keyword.
 
 
-
 (defn build-cmd-maps
   "The idea here is that the lowest level command map is the one in mui-core.
   In the Rasto app (the first app to use Mui for command and control) we also
@@ -531,7 +549,6 @@
   pattern. So [rasto-core-cmd-maps, rasto-app-cmd-maps] --> app-level-cmd-maps,
   [mui-core-cmd-maps, app-level-cmd-maps] --> overall-runtime-cmd-maps."
   [lower-level-cmd-maps upper-level-cmd-maps]
-
   (let [ll-key-sym-keystroke-map (:key-sym-keystroke-map lower-level-cmd-maps)
         ul-key-sym-keystroke-map (:key-sym-keystroke-map upper-level-cmd-maps)
         ll-cmd-func-map (:cmd-func-map lower-level-cmd-maps)
@@ -563,10 +580,6 @@
         (reset! mui-object-store-ids obj-id-set')
         (swap! mui-object-store assoc-in [obj-type obj-id] {:obj obj :parent-obj-id parent-obj-id})
         (select-object obj-type obj-id)))))
-
-
-
-
 
 
 (defn prettify-history
@@ -629,8 +642,6 @@
     keycode-and-flags))
 
 
-
-
 (defn prettify-help
   "Picks out the help text summary for each command and puts a newline
   after it to make the help screen look tidy."
@@ -640,7 +651,19 @@
                     ) mui-cmd-map-including-app-cmds)))
 
 
-(defn mui-gui2
+(defn command-dispatcher [key-keyword]
+  (let [cmd-txtarea
+        (. js/document getElementById "command-window")
+        mui-cmd ((:cmd-func-map @cmd-maps-atom) key-keyword)]
+    #_(reset! cmd-maps-atom (build-cmd-maps basic-cmd-maps app-cmd-maps))
+    #_(println "keystroke-handler (mui-gui) :on-key-up, cursor is at "
+               (get-cursor-pos cmd-txtarea) ", mui-cmd: " mui-cmd ", key-keyword: " key-keyword)
+    (when mui-cmd
+      (set-mode :query mui-cmd key-keyword)
+      (prompt-user-and-run-command cmd-txtarea))))
+
+
+(defn mui-gui
   "This is the function that displays the actual Mui console. It will be
   called by the application using Mui, not by anything within mui.core so the
   IDE may identify it as unused."
@@ -660,7 +683,7 @@
                 key-keyword (@keystroke-to-key-sym-map-atom keycode-with-modifiers)
                 mui-cmd ((:cmd-func-map @cmd-maps-atom) key-keyword)]
             (reset! cmd-maps-atom (build-cmd-maps basic-cmd-maps app-cmd-maps))
-            #_(println "keystroke-handler (mui-gui2) :on-key-up, cursor is at "
+            #_(println "keystroke-handler (mui-gui) :on-key-up, cursor is at "
                        (get-cursor-pos cmd-txtarea) ", mui-cmd: " mui-cmd ", key-keyword: " key-keyword)
             (when mui-cmd
               (case (:mode @mui-state)
@@ -669,7 +692,7 @@
                   #_(println "mui-cmd is " key-keyword ", NORMAL MODE, active-in-normal: " active-in-normal)
                   (when active-in-normal
                     (set-mode :query mui-cmd key-keyword)
-                    (load-prompts cmd-txtarea)))
+                    (prompt-user-and-run-command cmd-txtarea)))
                 :query
                 #_(println "QUERY MODE, Command Entered: " key-keyword)
                 (let [active-in-query ((mui-cmd :active-in-states) :query)]

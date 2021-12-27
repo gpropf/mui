@@ -47,7 +47,7 @@
   from here."
   []
   [:div {}
-   [mc/mui-gui2 (mui-example-cfg :mui-cfg) {}]])
+   [mc/mui-gui (mui-example-cfg :mui-cfg) {}]])
 
 
 (defn render-app
