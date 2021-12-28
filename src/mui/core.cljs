@@ -62,10 +62,14 @@
 ;; mui-default-cfg: basically a few simple styles that keep the Mui
 ;; console somewhat more readable.
 (def mui-default-cfg {:command-window-prompt ":> "
-                      :command-window        {}
+                      :command-window        {:style {:height        "auto"
+                                                      :margin-bottom "5px"
+                                                      :float         "right"
+                                                      :font-size     "8pt"}}
                       :history-window        {:style {:height        "auto"
                                                       :margin-bottom "5px"
-                                                      :float         "right"}
+                                                      :float         "right"
+                                                      :font-size     "8pt"}
                                               :id    "history-window"
                                               :rows  "8"
                                               :cols  "60"
@@ -331,19 +335,14 @@
    Perhaps a transformation could be applied to the commands to change file in
    some odd way."
   [set-of-keys-to-serialize]
-  {
-   :mui-state                     (if (set-of-keys-to-serialize :mui-state) mui-state nil)
-   :application-defined-types     (if (set-of-keys-to-serialize :application-defined-types) application-defined-types nil)
-   :mui-object-store              (if (set-of-keys-to-serialize :mui-object-store) mui-object-store nil)
-   :mui-object-store-ids          (if (set-of-keys-to-serialize :mui-object-store-ids) mui-object-store-ids nil)
-   :command-history               (if (set-of-keys-to-serialize :command-history) command-history nil)
-   :cmd-maps-atom                 (if (set-of-keys-to-serialize :cmd-maps-atom) cmd-maps-atom nil)
-   :keystroke-to-key-sym-map-atom (if (set-of-keys-to-serialize :keystroke-to-key-sym-map-atom) keystroke-to-key-sym-map-atom nil)
-   :tickets                       (if (set-of-keys-to-serialize :tickets) tickets nil)
-
-   }
-
-  )
+  {:mui-state                     (if (set-of-keys-to-serialize :mui-state) @mui-state nil)
+   :application-defined-types     (if (set-of-keys-to-serialize :application-defined-types) @application-defined-types nil)
+   :mui-object-store              (if (set-of-keys-to-serialize :mui-object-store) @mui-object-store nil)
+   :mui-object-store-ids          (if (set-of-keys-to-serialize :mui-object-store-ids) @mui-object-store-ids nil)
+   :command-history               (if (set-of-keys-to-serialize :command-history) @command-history nil)
+   :cmd-maps-atom                 (if (set-of-keys-to-serialize :cmd-maps-atom) @cmd-maps-atom nil)
+   :keystroke-to-key-sym-map-atom (if (set-of-keys-to-serialize :keystroke-to-key-sym-map-atom) @keystroke-to-key-sym-map-atom nil)
+   :tickets                       (if (set-of-keys-to-serialize :tickets) @tickets nil)})
 
 
 (defn get-object-from-object-store
@@ -491,12 +490,16 @@
                            :ArrowDown {:fn               (fn [arg-map]
                                                            (let [download-filename (get-in arg-map [:download-filename :val])
                                                                  data #_@cmd-maps-atom
-                                                                 (serialize-selected-data
-                                                                   #{:mui-state :tickets
-                                                                     :application-defined-types :mui-object-store
-                                                                     :mui-object-store-ids :command-history
-                                                                     :cmd-maps-atom :keystroke-to-key-sym-map-atom
-                                                                     })
+                                                                 (serialize-selected-data #{:tickets :mui-state :application-defined-types
+                                                                                            :mui-object-store
+                                                                                            :mui-object-store-ids
+                                                                                            :command-history
+                                                                                            }
+                                                                                          #_#{:mui-state :tickets
+                                                                                              :application-defined-types :mui-object-store
+                                                                                              :mui-object-store-ids :command-history
+                                                                                              :cmd-maps-atom :keystroke-to-key-sym-map-atom
+                                                                                              })
                                                                  data-map {:download-filename download-filename
                                                                            :data              data}]
                                                              (gpu/send-data data-map download-filename)))
