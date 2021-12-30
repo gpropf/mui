@@ -380,6 +380,12 @@
     (get-object-from-object-store obj-type obj-id)))
 
 
+(defrecord Foo [a b c])
+
+(def mc-edn-reader {'mui.core.Foo map->Foo})
+
+(def footest1 (->Foo 1 2 3))
+
 (def basic-cmd-maps
   "Prompts can now be functions that return text instead of static
   text. Any prompt whose text might change based on something that can
@@ -502,7 +508,7 @@
                                                                                               :cmd-maps-atom :keystroke-to-key-sym-map-atom
                                                                                               })
                                                                  data-map {:download-filename download-filename
-                                                                           :data              data #_(:obj (get-object-from-object-store :foo1))}]
+                                                                           :data              {:application-defined-types footest1}  #_data #_(:obj (get-object-from-object-store :foo1))}]
                                                              (gpu/send-data data-map download-filename)))
                                        :active-in-states (set [:normal])
                                        :args             {:download-filename
