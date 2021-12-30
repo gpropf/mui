@@ -17,6 +17,7 @@
   or even impossible."
   (:require
     [reagent.dom :as rd]
+    [clojure.core.reducers :as r]
     [clojure.string :as str]
     [reagent.core :as reagent :refer [atom]]
     [clojure.set :as set]
@@ -335,14 +336,14 @@
    Perhaps a transformation could be applied to the commands to change file in
    some odd way."
   [set-of-keys-to-serialize]
-  {:mui-state                     (if (set-of-keys-to-serialize :mui-state) @mui-state nil)
+  {:mui-state                     (if (set-of-keys-to-serialize :mui-state) mui-state nil)
    :application-defined-types     (if (set-of-keys-to-serialize :application-defined-types) @application-defined-types nil)
-   :mui-object-store              (if (set-of-keys-to-serialize :mui-object-store) @mui-object-store nil)
+   :mui-object-store              (if (set-of-keys-to-serialize :mui-object-store) mui-object-store nil)
    :mui-object-store-ids          (if (set-of-keys-to-serialize :mui-object-store-ids) @mui-object-store-ids nil)
-   :command-history               (if (set-of-keys-to-serialize :command-history) @command-history nil)
-   :cmd-maps-atom                 (if (set-of-keys-to-serialize :cmd-maps-atom) @cmd-maps-atom nil)
-   :keystroke-to-key-sym-map-atom (if (set-of-keys-to-serialize :keystroke-to-key-sym-map-atom) @keystroke-to-key-sym-map-atom nil)
-   :tickets                       (if (set-of-keys-to-serialize :tickets) @tickets nil)})
+   :command-history               (if (set-of-keys-to-serialize :command-history) command-history nil)
+   :cmd-maps-atom                 (if (set-of-keys-to-serialize :cmd-maps-atom) cmd-maps-atom nil)
+   :keystroke-to-key-sym-map-atom (if (set-of-keys-to-serialize :keystroke-to-key-sym-map-atom) keystroke-to-key-sym-map-atom nil)
+   :tickets                       (if (set-of-keys-to-serialize :tickets) tickets nil)})
 
 
 (defn get-object-from-object-store
@@ -490,10 +491,10 @@
                            :ArrowDown {:fn               (fn [arg-map]
                                                            (let [download-filename (get-in arg-map [:download-filename :val])
                                                                  data #_@cmd-maps-atom
-                                                                 (serialize-selected-data #{:tickets :mui-state :application-defined-types
-                                                                                            :mui-object-store
+                                                                 (serialize-selected-data #{ ;:tickets :mui-state :application-defined-types
+                                                                                            ;:mui-object-store
                                                                                             :mui-object-store-ids
-                                                                                            :command-history
+                                                                                            ;:command-history
                                                                                             }
                                                                                           #_#{:mui-state :tickets
                                                                                               :application-defined-types :mui-object-store
@@ -561,12 +562,26 @@
     merged-cmd-maps))
 
 
+(def edn-readers-upl (atom {}))
+
+(defn collect-edn-readers []
+  (println "RUNNING: collect-edn-readers")
+  (r/fold merge (map (fn [t]
+                        (let [reader (get-in @application-defined-types [t :edn-readers])]
+                          (println "READER for type " t " found. Reader is: " reader)
+                          reader))
+                      (keys @application-defined-types))))
+
+
 (defn register-application-defined-type
   "Let Mui know about a new type that can be instantiated, destroyed, etc..."
-  [type-name constructor-prompts]
-  (swap! application-defined-types assoc type-name {:prompts constructor-prompts
+  [type-name constructor-prompts edn-readers]
+  (println "RUNNING: register-application-defined-type")
+  (swap! application-defined-types assoc type-name {:prompts     constructor-prompts
+                                                    :edn-readers edn-readers
                                                     ;;:selection nil
-                                                    }))
+                                                    })
+  (reset! edn-readers-upl (collect-edn-readers)))
 
 
 (defn add-object-to-object-store
@@ -666,6 +681,32 @@
       (prompt-user-and-run-command cmd-txtarea))))
 
 
+#_(defn upload-control
+  "A control to upload your rules."
+  [edn-readers callback]
+  [:div {:class "upload fileUpload btn btn-primary col_12"}
+   [:label {:for   "upload-button"
+            :class "col_6"} "Upload ruleset"]
+   [:input {:id          "uploaded-files"
+            :type        "file"
+            :style       {:font-size "8pt"}
+            :class       "upload col_6"
+            :placeholder "rules.edn"
+            :on-change   #(gpu/fetch-and-parse-uploaded-file! edn-readers callback)}]])
+
+
+
+
+
+(defn de-serialize-file-data [m]
+  (println "RUNNING: de-serialize-file-data - :application-defined-types" (get-in m [:data :application-defined-types]))
+  (println "RUNNING: de-serialize-file-data - :mui-object-store-ids" (get-in m [:data :mui-object-store-ids]))
+
+
+
+  )
+
+
 (defn mui-gui
   "This is the function that displays the actual Mui console. It will be
   called by the application using Mui, not by anything within mui.core so the
@@ -678,6 +719,7 @@
   (reset! cmd-maps-atom (build-cmd-maps basic-cmd-maps app-cmd-maps))
   (let [_ (reset! cmd-maps-atom (build-cmd-maps basic-cmd-maps app-cmd-maps))
         _ (reset! keystroke-to-key-sym-map-atom (set/map-invert (:key-sym-keystroke-map @cmd-maps-atom)))
+        ;collected-edn-readers (collect-edn-readers)
         keystroke-handler
         (fn [event]
           (let [cmd-txtarea
@@ -705,6 +747,7 @@
                       (command-fn)
                       )))))))]
     [:div {:id "mui-gui"}
+     [gpu/upload-control {}  #_edn-readers-upl de-serialize-file-data]
      [:div {:style {:width "45%" :margin "auto"}}
       #_[gpu/upload-control {} js/alert]
       [:label {:for "command-window"} "Command Entry: "]
