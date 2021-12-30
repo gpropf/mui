@@ -338,7 +338,7 @@
   [set-of-keys-to-serialize]
   {:mui-state                     (if (set-of-keys-to-serialize :mui-state) mui-state nil)
    :application-defined-types     (if (set-of-keys-to-serialize :application-defined-types) @application-defined-types nil)
-   :mui-object-store              (if (set-of-keys-to-serialize :mui-object-store) mui-object-store nil)
+   :mui-object-store              (if (set-of-keys-to-serialize :mui-object-store) @mui-object-store nil)
    :mui-object-store-ids          (if (set-of-keys-to-serialize :mui-object-store-ids) @mui-object-store-ids nil)
    :command-history               (if (set-of-keys-to-serialize :command-history) command-history nil)
    :cmd-maps-atom                 (if (set-of-keys-to-serialize :cmd-maps-atom) cmd-maps-atom nil)
@@ -491,8 +491,8 @@
                            :ArrowDown {:fn               (fn [arg-map]
                                                            (let [download-filename (get-in arg-map [:download-filename :val])
                                                                  data #_@cmd-maps-atom
-                                                                 (serialize-selected-data #{ ;:tickets :mui-state :application-defined-types
-                                                                                            ;:mui-object-store
+                                                                 (serialize-selected-data #{;:tickets :mui-state :application-defined-types
+                                                                                            :mui-object-store
                                                                                             :mui-object-store-ids
                                                                                             ;:command-history
                                                                                             }
@@ -502,7 +502,7 @@
                                                                                               :cmd-maps-atom :keystroke-to-key-sym-map-atom
                                                                                               })
                                                                  data-map {:download-filename download-filename
-                                                                           :data              data}]
+                                                                           :data              data #_(:obj (get-object-from-object-store :foo1))}]
                                                              (gpu/send-data data-map download-filename)))
                                        :active-in-states (set [:normal])
                                        :args             {:download-filename
@@ -576,7 +576,7 @@
 (defn register-application-defined-type
   "Let Mui know about a new type that can be instantiated, destroyed, etc..."
   [type-name constructor-prompts edn-readers]
-  (println "RUNNING: register-application-defined-type")
+  (println "RUNNING2: register-application-defined-type")
   (swap! application-defined-types assoc type-name {:prompts     constructor-prompts
                                                     :edn-readers edn-readers
                                                     ;;:selection nil
@@ -681,18 +681,6 @@
       (prompt-user-and-run-command cmd-txtarea))))
 
 
-#_(defn upload-control
-  "A control to upload your rules."
-  [edn-readers callback]
-  [:div {:class "upload fileUpload btn btn-primary col_12"}
-   [:label {:for   "upload-button"
-            :class "col_6"} "Upload ruleset"]
-   [:input {:id          "uploaded-files"
-            :type        "file"
-            :style       {:font-size "8pt"}
-            :class       "upload col_6"
-            :placeholder "rules.edn"
-            :on-change   #(gpu/fetch-and-parse-uploaded-file! edn-readers callback)}]])
 
 
 
@@ -747,7 +735,7 @@
                       (command-fn)
                       )))))))]
     [:div {:id "mui-gui"}
-     [gpu/upload-control {}  #_edn-readers-upl de-serialize-file-data]
+     [gpu/upload-control @edn-readers-upl de-serialize-file-data]
      [:div {:style {:width "45%" :margin "auto"}}
       #_[gpu/upload-control {} js/alert]
       [:label {:for "command-window"} "Command Entry: "]
