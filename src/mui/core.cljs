@@ -60,6 +60,38 @@
 #_(swap! mui-object-store assoc :obj-ids (sorted-set))
 
 
+(defn reset-mui! []
+  (reset! mui-object-store
+          (sorted-map))
+  (reset! mui-object-store-ids
+          (sorted-map))
+  (reset! application-defined-types
+          (sorted-map))
+  (reset! mui-state {:command-buffer ""
+                     :mode           :normal
+                     :query          {}})
+  )
+
+(defn print-section-break [section-name n]
+  (println (apply str (take n (repeat "="))))
+  (println section-name)
+  (println (apply str (take n (repeat "=")))))
+
+(defn print-mui []
+
+  (print-section-break "mui-object-store" 60)
+  (pp/pprint @mui-object-store)
+
+  (print-section-break "mui-object-store-ids" 60)
+  (pp/pprint @mui-object-store-ids)
+
+  (print-section-break "application-defined-types" 60)
+  (pp/pprint @application-defined-types)
+
+  (print-section-break "mui-state" 60)
+  (pp/pprint @mui-state)
+  )
+
 ;; mui-default-cfg: basically a few simple styles that keep the Mui
 ;; console somewhat more readable.
 (def mui-default-cfg {:command-window-prompt ":> "
@@ -105,6 +137,46 @@
                                        (throw "Empty strings not allowed!")
                                        ) (str/trim %1))})
 
+
+(defn de-atomize [obj]
+  (if (= (type obj) (type {}))
+    (into {}
+          (map (fn [[k v]]
+                 (if (= (type v) (type (atom nil)))
+                   [k {:de-atomized (de-atomize @v)}]
+                   [k (de-atomize v)]
+                   )
+                 ) obj))
+    obj
+    )
+  )
+
+(defn atomize [obj]
+  (if (= (type obj) (type {}))
+    (into {}
+          (map (fn [[k v]]
+                 (if (= k :de-atomized)
+                   [k (atom (atomize v))]
+                   [k (atomize v)]
+                   )) obj))
+    obj))
+
+#_(if (= (count v) 1)
+    (let [[vk vv] (into [] v)]
+      (if (= vk :de-atomized)
+        [k (atom vv)]
+        [k {vk vv}]
+        ))
+    (atomize v))
+
+
+#_(if (= (type v) (type {}))
+    (let [[vk vv] v]
+      (if (= vk :de-atomized)
+        [k (atom vv)]
+        )
+      )
+    )
 
 (defn prettify-list-to-string
   "Prints the collection in lst with numbers associated with each item
@@ -380,12 +452,6 @@
     (get-object-from-object-store obj-type obj-id)))
 
 
-(defrecord Foo [a b c])
-
-(def mc-edn-reader {'mui.core.Foo map->Foo})
-
-(def footest1 (->Foo 1 2 3))
-
 (def basic-cmd-maps
   "Prompts can now be functions that return text instead of static
   text. Any prompt whose text might change based on something that can
@@ -508,8 +574,8 @@
                                                                                               :cmd-maps-atom :keystroke-to-key-sym-map-atom
                                                                                               })
                                                                  data-map {:download-filename download-filename
-                                                                           :data              {:application-defined-types footest1}  #_data #_(:obj (get-object-from-object-store :foo1))}]
-                                                             (gpu/send-data data-map download-filename)))
+                                                                           :data              data  #_data #_(:obj (get-object-from-object-store :foo1))}]
+                                                             (gpu/send-data (de-atomize data-map) download-filename)))
                                        :active-in-states (set [:normal])
                                        :args             {:download-filename
                                                           {:prompt "Enter a filename:"
@@ -573,10 +639,10 @@
 (defn collect-edn-readers []
   (println "RUNNING: collect-edn-readers")
   (r/fold merge (map (fn [t]
-                        (let [reader (get-in @application-defined-types [t :edn-readers])]
-                          (println "READER for type " t " found. Reader is: " reader)
-                          reader))
-                      (keys @application-defined-types))))
+                       (let [reader (get-in @application-defined-types [t :edn-readers])]
+                         (println "READER for type " t " found. Reader is: " reader)
+                         reader))
+                     (keys @application-defined-types))))
 
 
 (defn register-application-defined-type
@@ -695,8 +761,7 @@
 (defn de-serialize-file-data [m]
   (println "RUNNING: de-serialize-file-data - :application-defined-types" (get-in m [:data :application-defined-types]))
   (println "RUNNING: de-serialize-file-data - :mui-object-store-ids" (get-in m [:data :mui-object-store-ids]))
-
-
+  (println "RUNNING: de-serialize-file-data - :mui-object-store" (get-in m [:data :mui-object-store]))
 
   )
 
@@ -759,3 +824,4 @@
       [:textarea (merge (:history-window mui-default-cfg)
                         {:value    (prettify-help (:cmd-func-map @cmd-maps-atom))
                          :readOnly true})]]]))
+
