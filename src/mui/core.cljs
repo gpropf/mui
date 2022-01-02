@@ -139,27 +139,29 @@
 
 
 (defn de-atomize [obj breadcrumbs paths-to-atoms-atom]
-  (if (or (= (type obj) PersistentHashMap)
-          (= (type obj) PersistentArrayMap)
-          (= (type obj) PersistentTreeMap)
-          (record? obj))
-    (do
-      (println "MAP OR RECORD: " obj)
-      (into {}
-            (map (fn [[k v]]
-                   (let [breadcrumbs' (conj breadcrumbs k)
-                         _ (println "KEY: " k ", LEVEL: " (count breadcrumbs'))]
-                     (if (= (type v) (type (atom nil)))
-                       (do
-                         (println "ATOM FOUND! KEY: " k)
-                         (swap! paths-to-atoms-atom conj breadcrumbs')
-                         [k (de-atomize @v breadcrumbs' paths-to-atoms-atom)])
-                       [k (de-atomize v breadcrumbs' paths-to-atoms-atom)]
-                       ))
-                   ) obj)))
-    (do (println "NOT MAP OR RECORD: TYPE: " (type obj) ":" obj)
-        obj)
-    ))
+  (let []
+    #_(reset! paths-to-atoms-atom [])
+    (if (or (= (type obj) PersistentHashMap)
+           (= (type obj) PersistentArrayMap)
+           (= (type obj) PersistentTreeMap)
+           (record? obj))
+     (do
+       (println "MAP OR RECORD: " obj)
+       (into {}
+             (map (fn [[k v]]
+                    (let [breadcrumbs' (conj breadcrumbs k)
+                          _ (println "KEY: " k ", LEVEL: " (count breadcrumbs'))]
+                      (if (= (type v) (type (atom nil)))
+                        (do
+                          (println "ATOM FOUND! KEY: " k)
+                          (swap! paths-to-atoms-atom conj [breadcrumbs' (type @v)])
+                          [k (de-atomize @v breadcrumbs' paths-to-atoms-atom)])
+                        [k (de-atomize v breadcrumbs' paths-to-atoms-atom)]
+                        ))
+                    ) obj)))
+     (do (println "NOT MAP OR RECORD: TYPE: " (type obj) ":" obj)
+         obj)
+     )))
 
 
 (defn atomize [de-atomized-obj paths-to-atoms-atom]
