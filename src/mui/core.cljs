@@ -138,28 +138,45 @@
                                        ) (str/trim %1))})
 
 
-(defn de-atomize [obj]
-  (if (= (type obj) (type {}))
-    (into {}
-          (map (fn [[k v]]
-                 (if (= (type v) (type (atom nil)))
-                   [k {:de-atomized (de-atomize @v)}]
-                   [k (de-atomize v)]
-                   )
-                 ) obj))
-    obj
-    )
-  )
+(defn de-atomize [obj breadcrumbs paths-to-atoms-atom]
+  (if (or (= (type obj) PersistentHashMap)
+          (= (type obj) PersistentArrayMap)
+          (= (type obj) PersistentTreeMap)
+          (record? obj))
+    (do
+      (println "MAP OR RECORD: " obj)
+      (into {}
+            (map (fn [[k v]]
+                   (let [breadcrumbs' (conj breadcrumbs k)
+                         _ (println "KEY: " k ", LEVEL: " (count breadcrumbs'))]
+                     (if (= (type v) (type (atom nil)))
+                       (do
+                         (println "ATOM FOUND! KEY: " k)
+                         (swap! paths-to-atoms-atom conj breadcrumbs')
+                         [k (de-atomize @v breadcrumbs' paths-to-atoms-atom)])
+                       [k (de-atomize v breadcrumbs' paths-to-atoms-atom)]
+                       ))
+                   ) obj)))
+    (do (println "NOT MAP OR RECORD: TYPE: " (type obj) ":" obj)
+        obj)
+    ))
 
-(defn atomize [obj]
-  (if (= (type obj) (type {}))
-    (into {}
-          (map (fn [[k v]]
-                 (if (= k :de-atomized)
-                   [k (atom (atomize v))]
-                   [k (atomize v)]
-                   )) obj))
-    obj))
+
+(defn atomize [de-atomized-obj paths-to-atoms-atom]
+  (let [paths-to-atoms @paths-to-atoms-atom]
+    (loop [paths-to-atoms' paths-to-atoms
+           reatomized-obj de-atomized-obj]
+
+      ;;(swap! re-atomized-obj-atom update-in first-path-to-atoms atom)
+      (if-let [first-path (first paths-to-atoms')]
+        (recur (rest paths-to-atoms')
+               (update-in reatomized-obj first-path atom))
+        reatomized-obj
+        )
+      )
+    ))
+
+
 
 #_(if (= (count v) 1)
     (let [[vk vv] (into [] v)]
@@ -562,10 +579,11 @@
                                        :help             {:msg "d\t: Delete currently selected object."}}
                            :ArrowDown {:fn               (fn [arg-map]
                                                            (let [download-filename (get-in arg-map [:download-filename :val])
+                                                                 paths-to-atoms-atom (atom [])
                                                                  data #_@cmd-maps-atom
                                                                  (serialize-selected-data #{;:tickets :mui-state :application-defined-types
                                                                                             :mui-object-store
-                                                                                            :mui-object-store-ids
+                                                                                            ;;:mui-object-store-ids
                                                                                             ;:command-history
                                                                                             }
                                                                                           #_#{:mui-state :tickets
@@ -573,9 +591,13 @@
                                                                                               :mui-object-store-ids :command-history
                                                                                               :cmd-maps-atom :keystroke-to-key-sym-map-atom
                                                                                               })
+                                                                 de-atomized-data (de-atomize data [] paths-to-atoms-atom)
+                                                                 _ (println "DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:")
+                                                                 _ (pprint de-atomized-data)
                                                                  data-map {:download-filename download-filename
-                                                                           :data              data  #_data #_(:obj (get-object-from-object-store :foo1))}]
-                                                             (gpu/send-data (de-atomize data-map) download-filename)))
+                                                                           :data              de-atomized-data
+                                                                           :paths-to-atoms    @paths-to-atoms-atom #_data #_(:obj (get-object-from-object-store :foo1))}]
+                                                             (gpu/send-data data-map download-filename)))
                                        :active-in-states (set [:normal])
                                        :args             {:download-filename
                                                           {:prompt "Enter a filename:"
