@@ -164,8 +164,8 @@
      )))
 
 
-(defn atomize [de-atomized-obj paths-to-atoms-atom]
-  (let [paths-to-atoms @paths-to-atoms-atom]
+(defn atomize [de-atomized-obj paths-to-atoms]
+  (let [paths-to-atoms (reverse (sort-by #(count (first %)) paths-to-atoms))]
     (loop [paths-to-atoms' paths-to-atoms
            reatomized-obj de-atomized-obj]
 
@@ -786,6 +786,7 @@
   (println "RUNNING: de-serialize-file-data - :application-defined-types" (get-in m [:data :application-defined-types]))
   (println "RUNNING: de-serialize-file-data - :mui-object-store-ids" (get-in m [:data :mui-object-store-ids]))
   (println "RUNNING: de-serialize-file-data - :mui-object-store" (get-in m [:data :mui-object-store]))
+  (println "RUNNING: de-serialize-file-data - :paths-to-atoms" (reverse (sort-by #(count (first %)) (get-in m [:paths-to-atoms]))))
 
   )
 
@@ -831,6 +832,7 @@
                       )))))))]
     [:div {:id "mui-gui"}
      [gpu/upload-control @edn-readers-upl de-serialize-file-data]
+     #_[gpu/upload-control @edn-readers-upl identity]
      [:div {:style {:width "45%" :margin "auto"}}
       #_[gpu/upload-control {} js/alert]
       [:label {:for "command-window"} "Command Entry: "]
