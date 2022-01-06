@@ -32,8 +32,8 @@
 
 
 
-(mc/register-application-defined-type :T1 {:b 2} nil)
-(mc/register-application-defined-type :T2 {:c 3} nil)
+(mc/register-application-defined-type :T1 {:b 2} nil nil)
+(mc/register-application-defined-type :T2 {:c 3} nil nil)
 
 (def test-data-map {:download-filename "gputils-test.edn"
                     :data [1 2 3 4 5 :a :b :foo]})

@@ -142,38 +142,52 @@
   (let []
     #_(reset! paths-to-atoms-atom [])
     (if (or (= (type obj) PersistentHashMap)
-           (= (type obj) PersistentArrayMap)
-           (= (type obj) PersistentTreeMap)
-           (record? obj))
-     (do
-       (println "MAP OR RECORD: " obj)
-       (into {}
-             (map (fn [[k v]]
-                    (let [breadcrumbs' (conj breadcrumbs k)
-                          _ (println "KEY: " k ", LEVEL: " (count breadcrumbs'))]
-                      (if (= (type v) (type (atom nil)))
-                        (do
-                          (println "ATOM FOUND! KEY: " k)
-                          (swap! paths-to-atoms-atom conj [breadcrumbs' (type @v)])
-                          [k (de-atomize @v breadcrumbs' paths-to-atoms-atom)])
-                        [k (de-atomize v breadcrumbs' paths-to-atoms-atom)]
-                        ))
-                    ) obj)))
-     (do (println "NOT MAP OR RECORD: TYPE: " (type obj) ":" obj)
-         obj)
-     )))
+            (= (type obj) PersistentArrayMap)
+            (= (type obj) PersistentTreeMap)
+            (record? obj))
+      (do
+        (println "MAP OR RECORD: " obj)
+        (into {}
+              (map (fn [[k v]]
+                     (let [breadcrumbs' (conj breadcrumbs k)
+                           _ (println "KEY: " k ", LEVEL: " (count breadcrumbs'))]
+                       (if (= (type v) (type (atom nil)))
+                         (do
+                           (println "ATOM FOUND! KEY: " k)
+                           (swap! paths-to-atoms-atom conj [breadcrumbs' (type @v)])
+                           [k (de-atomize @v breadcrumbs' paths-to-atoms-atom)])
+                         [k (de-atomize v breadcrumbs' paths-to-atoms-atom)]
+                         ))
+                     ) obj)))
+      (do (println "NOT MAP OR RECORD: TYPE: " (type obj) ":" obj)
+          obj)
+      )))
 
 
 (defn atomize [de-atomized-obj paths-to-atoms]
-  (let [paths-to-atoms (reverse (sort-by #(count (first %)) paths-to-atoms))]
-    (loop [paths-to-atoms' paths-to-atoms
-           reatomized-obj de-atomized-obj]
+  (let [sorted-paths-to-atoms (reverse (sort-by #(count (first %)) paths-to-atoms))]
+    (loop [sorted-paths-to-atoms' sorted-paths-to-atoms
+           re-atomized-obj de-atomized-obj
+           ]
 
       ;;(swap! re-atomized-obj-atom update-in first-path-to-atoms atom)
-      (if-let [first-path (first paths-to-atoms')]
-        (recur (rest paths-to-atoms')
-               (update-in reatomized-obj first-path atom))
-        reatomized-obj
+      (if-let [first-sorted-paths-to-atoms' (first sorted-paths-to-atoms')
+               ]
+        (let [first-path (first first-sorted-paths-to-atoms')
+              re-hydration-key (str (second first-sorted-paths-to-atoms'))
+              re-hydration-map (:re-hydration-map @application-defined-types)
+              re-hydration-fn (re-hydration-map re-hydration-key)
+              obj-as-plain-map (get-in re-atomized-obj first-path)
+
+              ]
+          (println "Re-HYDRATION KEY: " re-hydration-key)
+          (println "Re-HYDRATION MAP: " re-hydration-map)
+          (println "Re-HYDRATION FN: " re-hydration-fn)
+          (println "OBJ AS PLAIN MAP: " obj-as-plain-map)
+          (println "RE-ATOMIZED OBJ: " re-atomized-obj)
+          (recur (rest sorted-paths-to-atoms')
+                 (assoc-in re-atomized-obj first-path #_identity (re-hydration-fn obj-as-plain-map))))
+        re-atomized-obj
         )
       )
     ))
@@ -585,7 +599,7 @@
                                                                  data #_@cmd-maps-atom
                                                                  (serialize-selected-data #{;:tickets :mui-state :application-defined-types
                                                                                             :mui-object-store
-                                                                                            ;;:mui-object-store-ids
+                                                                                            :mui-object-store-ids
                                                                                             ;:command-history
                                                                                             }
                                                                                           #_#{:mui-state :tickets
@@ -671,13 +685,17 @@
 
 (defn register-application-defined-type
   "Let Mui know about a new type that can be instantiated, destroyed, etc..."
-  [type-name constructor-prompts edn-readers]
-  (println "RUNNING2: register-application-defined-type")
-  (swap! application-defined-types assoc type-name {:prompts     constructor-prompts
-                                                    :edn-readers edn-readers
-                                                    ;;:selection nil
-                                                    })
-  (reset! edn-readers-upl (collect-edn-readers)))
+  [type-name constructor-prompts edn-readers re-hydration-map]
+  (let [existing-re-hydration-map (:re-hydration-map @application-defined-types)
+        updated-re-hydration-map (merge existing-re-hydration-map re-hydration-map)]
+    (println "RUNNING2: register-application-defined-type")
+    (swap! application-defined-types assoc type-name {:prompts     constructor-prompts
+                                                      :edn-readers edn-readers
+                                                      ;;:selection nil
+
+                                                      })
+    (swap! application-defined-types assoc :re-hydration-map updated-re-hydration-map)
+    (reset! edn-readers-upl (collect-edn-readers))))
 
 
 (defn add-object-to-object-store
@@ -783,11 +801,18 @@
 
 
 (defn de-serialize-file-data [m]
+  ;; Search/replace regex to clean out function objects in Intellij: #object\[rasto\$example\$[a-z_]+_fn\] --> nil
   (println "RUNNING: de-serialize-file-data - :application-defined-types" (get-in m [:data :application-defined-types]))
-  (println "RUNNING: de-serialize-file-data - :mui-object-store-ids" (get-in m [:data :mui-object-store-ids]))
+  (println "RUNNING: de-serialize-file-data - :mui-object-store-ids" )
   (println "RUNNING: de-serialize-file-data - :mui-object-store" (get-in m [:data :mui-object-store]))
   (println "RUNNING: de-serialize-file-data - :paths-to-atoms" (reverse (sort-by #(count (first %)) (get-in m [:paths-to-atoms]))))
-
+  (let [atomized-object-store (atomize (get-in m [:data])
+                                       (reverse (sort-by #(count (first %))
+                                                         (get-in m [:paths-to-atoms]))))
+        ds-mui-object-store-ids (get-in m [:data :mui-object-store-ids])]
+    (println "ATOMIZED OBJECTS: " atomized-object-store)
+    (reset! mui-object-store (:mui-object-store atomized-object-store))
+    (reset! mui-object-store-ids ds-mui-object-store-ids))
   )
 
 
