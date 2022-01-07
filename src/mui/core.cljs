@@ -186,7 +186,7 @@
           (println "OBJ AS PLAIN MAP: " obj-as-plain-map)
           (println "RE-ATOMIZED OBJ: " re-atomized-obj)
           (recur (rest sorted-paths-to-atoms')
-                 (assoc-in re-atomized-obj first-path #_identity (atom (re-hydration-fn obj-as-plain-map)))))
+                 (assoc-in re-atomized-obj first-path #_identity (re-hydration-fn obj-as-plain-map))))
         re-atomized-obj
         )
       )
@@ -806,13 +806,19 @@
   (println "RUNNING: de-serialize-file-data - :mui-object-store-ids" )
   (println "RUNNING: de-serialize-file-data - :mui-object-store" (get-in m [:data :mui-object-store]))
   (println "RUNNING: de-serialize-file-data - :paths-to-atoms" (reverse (sort-by #(count (first %)) (get-in m [:paths-to-atoms]))))
-  (let [atomized-object-store (atomize (get-in m [:data])
+  (let [atomized-objects (atomize (get-in m [:data])
                                        (reverse (sort-by #(count (first %))
                                                          (get-in m [:paths-to-atoms]))))
-        ds-mui-object-store-ids (get-in m [:data :mui-object-store-ids])]
-    (println "ATOMIZED OBJECTS: " atomized-object-store)
-    (reset! mui-object-store (:mui-object-store atomized-object-store))
-    (reset! mui-object-store-ids ds-mui-object-store-ids))
+        ds-mui-object-store-ids (get-in m [:data :mui-object-store-ids])
+        uploaded-rst1 (get-in atomized-objects [:mui-object-store :Raster :rst1 :obj])
+        existing-rst1 (get-in @mui-object-store [:Raster :rst1 :obj])]
+    (println "UPLOADED RST1: " uploaded-rst1)
+    (println "EXISTING RST1: " existing-rst1)
+    (swap! existing-rst1 assoc :raw-data (:raw-data uploaded-rst1))
+    (swap! existing-rst1 assoc :brushes (:brushes uploaded-rst1))
+    (println "EXISTING RST1 AFTER RESET: " existing-rst1)
+    #_(reset! mui-object-store (:mui-object-store atomized-object-store))
+    #_(reset! mui-object-store-ids ds-mui-object-store-ids))
   )
 
 
