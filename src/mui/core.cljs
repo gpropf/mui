@@ -186,7 +186,7 @@
           (println "OBJ AS PLAIN MAP: " obj-as-plain-map)
           (println "RE-ATOMIZED OBJ: " re-atomized-obj)
           (recur (rest sorted-paths-to-atoms')
-                 (assoc-in re-atomized-obj first-path #_identity (re-hydration-fn obj-as-plain-map))))
+                 (assoc-in re-atomized-obj first-path #_identity (atom (re-hydration-fn obj-as-plain-map)))))
         re-atomized-obj
         )
       )
