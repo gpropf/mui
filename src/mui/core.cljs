@@ -164,8 +164,8 @@
       )))
 
 
-(defn atomize [de-atomized-obj paths-to-atoms]
-  (let [sorted-paths-to-atoms (reverse (sort-by #(count (first %)) paths-to-atoms))]
+(defn atomize [original-obj-atom de-atomized-obj paths-to-atoms]
+  (let [sorted-paths-to-atoms (sort-by #(count (first %)) paths-to-atoms)]
     (loop [sorted-paths-to-atoms' sorted-paths-to-atoms
            re-atomized-obj de-atomized-obj
            ]
@@ -178,16 +178,36 @@
               re-hydration-map (:re-hydration-map @application-defined-types)
               re-hydration-fn (re-hydration-map re-hydration-key)
               obj-as-plain-map (get-in re-atomized-obj first-path)
-
+              rest-sorted-paths-to-atom (rest sorted-paths-to-atoms')
+              first-path-element (first first-path)
+              object-store-path (rest first-path)
               ]
+          (when (= first-path-element :mui-object-store)
+            (println "Object in object-store at path keys: " (keys (@mui-object-store object-store-path)))
+            )
+          (println "Current Path: " first-path ", number of remaining paths:" (count rest-sorted-paths-to-atom))
           (println "Re-HYDRATION KEY: " re-hydration-key)
           (println "Re-HYDRATION MAP: " re-hydration-map)
           (println "Re-HYDRATION FN: " re-hydration-fn)
           (println "OBJ AS PLAIN MAP: " obj-as-plain-map)
-          (println "RE-ATOMIZED OBJ: " re-atomized-obj)
-          (recur (rest sorted-paths-to-atoms')
-                 (assoc-in re-atomized-obj first-path #_identity (re-hydration-fn obj-as-plain-map))))
-        re-atomized-obj
+
+          (recur rest-sorted-paths-to-atom
+                 (re-atomized-obj)  #_(assoc-in re-atomized-obj first-path #_identity (atom (re-hydration-fn obj-as-plain-map)))))
+        (do
+          ;(println "RE-ATOMIZED OBJ: " re-atomized-obj)
+
+          (let [
+                last-sorted-path (first (last sorted-paths-to-atoms))
+                ;      _ (println "LAST PATH: " last-sorted-path)
+                ;      re-hydrated-raster (get-in re-atomized-obj [:mui-object-store :Raster :rst1 :obj])
+                ;      original-atom @original-obj-atom
+                ;      original-raster (get-in original-atom [:Raster :rst1 :obj])
+                ;      _ (println )   #_(println "REPLACE THIS: " original-raster)
+                ;      _ (println "WITH THIS: " re-hydrated-raster)
+                ]
+            ;(swap! original-raster assoc :raw-data (:raw-data @re-hydrated-raster))
+            )
+          re-atomized-obj)
         )
       )
     ))
@@ -672,15 +692,15 @@
     merged-cmd-maps))
 
 
-(def edn-readers-upl (atom {}))
+(def edn-readers-upl (atom {'object identity}))
 
 (defn collect-edn-readers []
   (println "RUNNING: collect-edn-readers")
-  (r/fold merge (map (fn [t]
-                       (let [reader (get-in @application-defined-types [t :edn-readers])]
-                         (println "READER for type " t " found. Reader is: " reader)
-                         reader))
-                     (keys @application-defined-types))))
+  (merge (r/fold merge (map (fn [t]
+                              (let [reader (get-in @application-defined-types [t :edn-readers])]
+                                (println "READER for type " t " found. Reader is: " reader)
+                                reader))
+                            (keys @application-defined-types))) {'object identity}))
 
 
 (defn register-application-defined-type
@@ -803,22 +823,24 @@
 (defn de-serialize-file-data [m]
   ;; Search/replace regex to clean out function objects in Intellij: #object\[rasto\$example\$[a-z_]+_fn\] --> nil
   (println "RUNNING: de-serialize-file-data - :application-defined-types" (get-in m [:data :application-defined-types]))
-  (println "RUNNING: de-serialize-file-data - :mui-object-store-ids" )
+  (println "RUNNING: de-serialize-file-data - :mui-object-store-ids")
   (println "RUNNING: de-serialize-file-data - :mui-object-store" (get-in m [:data :mui-object-store]))
   (println "RUNNING: de-serialize-file-data - :paths-to-atoms" (reverse (sort-by #(count (first %)) (get-in m [:paths-to-atoms]))))
-  (let [atomized-objects (atomize (get-in m [:data])
-                                       (reverse (sort-by #(count (first %))
-                                                         (get-in m [:paths-to-atoms]))))
+  (let [atomized-objects (atomize mui-object-store (get-in m [:data])
+                                  (reverse (sort-by #(count (first %))
+                                                    (get-in m [:paths-to-atoms]))))
         ds-mui-object-store-ids (get-in m [:data :mui-object-store-ids])
-        uploaded-rst1 (get-in atomized-objects [:mui-object-store :Raster :rst1 :obj])
-        existing-rst1 (get-in @mui-object-store [:Raster :rst1 :obj])]
-    (println "UPLOADED RST1: " uploaded-rst1)
-    (println "EXISTING RST1: " existing-rst1)
-    (swap! existing-rst1 assoc :raw-data (:raw-data uploaded-rst1))
-    (swap! existing-rst1 assoc :brushes (:brushes uploaded-rst1))
-    (println "EXISTING RST1 AFTER RESET: " existing-rst1)
-    #_(reset! mui-object-store (:mui-object-store atomized-object-store))
-    #_(reset! mui-object-store-ids ds-mui-object-store-ids))
+        ;uploaded-rst1 (get-in atomized-objects [:mui-object-store :Raster :rst1 :obj])
+        ;existing-rst1 (get-in @mui-object-store [:Raster :rst1 :obj])
+        ]
+    ;(println "UPLOADED RST1: " uploaded-rst1)
+    ;(println "EXISTING RST1: " existing-rst1)
+    ;(swap! existing-rst1 assoc :raw-data (:raw-data uploaded-rst1))
+    ;(swap! existing-rst1 assoc :brushes (:brushes uploaded-rst1))
+    ;(println "EXISTING RST1 AFTER RESET: " existing-rst1)
+    ;(reset! mui-object-store (:mui-object-store atomized-objects))
+    ;(reset! mui-object-store-ids ds-mui-object-store-ids)
+    )
   )
 
 
