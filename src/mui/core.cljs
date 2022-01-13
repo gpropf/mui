@@ -23,7 +23,7 @@
     [clojure.set :as set]
     [cljs.pprint :as pp :refer [pprint]]
     [gputils.core :as gpu]
-    [clojure.walk :as w :refer [postwalk]]))
+    [clojure.walk :as w :refer [postwalk prewalk walk]]))
 
 
 #_(def state (cljs.js/empty-state))
@@ -139,21 +139,27 @@
                                        ) (str/trim %1))})
 
 
-(defn deref-atoms-over-tree [t]
-  (postwalk
+(defn deref-atoms-over-tree [t atom-locations-atom]
+  (prewalk
     #(do
        (println "Fst: " % ", is type: " (type %))
-       (if (= (type %) (type (atom "ff")))
-         @%
-         %
+       ;(swap! atom-locations-atom conj %)
+       (if (= (type %) (type (atom "{}")))
+         (do (println "ATOM FOUND!! " %)
+             @%)
+         (do
+
+           %)
          )) t))
 
 
-(defn deref-until-atoms-exhausted [t]
-  (let [t' (deref-atoms-over-tree t)]
+(defn deref-until-atoms-exhausted [t atom-locations-atom]
+  (let [t' (deref-atoms-over-tree t atom-locations-atom)]
     (if (= t' t)
       t
-      (deref-until-atoms-exhausted t')
+      (do (println "NOT EQUAL: " t')
+          (swap! atom-locations-atom conj t)
+          (deref-until-atoms-exhausted t' atom-locations-atom))
       )
     )
   )
