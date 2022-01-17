@@ -140,17 +140,51 @@
 
 
 (defn deref-atoms-over-tree [t atom-locations-atom]
-  (prewalk
+  (postwalk
     #(do
-       (println "Fst: " % ", is type: " (type %))
+       (println "type: " (type %))
        ;(swap! atom-locations-atom conj %)
        (if (= (type %) (type (atom "{}")))
          (do (println "ATOM FOUND!! " %)
+             (swap! atom-locations-atom update :atom-locs conj (:map-stack @atom-locations-atom))
+             (swap! atom-locations-atom assoc :map-stack ())
              @%)
          (do
-
+           (if (keyword? %)
+             (swap! atom-locations-atom update :map-stack conj %)
+             )
            %)
          )) t))
+
+(defn recurse-map [m key-path atom-paths]
+  (map (fn [[k v]]
+         (if (and (keyword? k) (map? v))
+           (do
+
+             (println "KEYPATH: " key-path ", K/V: " k " , " v)
+             (recurse-map v (conj key-path k) atom-paths)
+             )
+           (when (= (type v) (type (atom {})))
+             (swap! atom-paths conj (conj key-path k)))
+           )) m))
+
+
+(defn deref-atoms-over-tree2 [t]
+  (let [atom-locations-atom (atom {:map-stack () :atom-locs ()})]
+    (defn wfn [[k v]]
+      (if (map? v)
+        (do (swap! atom-locations-atom update :map-stack conj k)
+            (println v " is map, " k " is " (type k))
+            (w/walk wfn identity v)
+            )
+        (when (= (type v) (type (atom {})))
+          (do
+            (swap! atom-locations-atom update :map-stack conj k)
+            (swap! atom-locations-atom update :atom-locs conj (:map-stack @atom-locations-atom))
+            (swap! atom-locations-atom assoc :map-stack ()))))
+      )
+    (w/walk wfn identity t)
+    atom-locations-atom))
 
 
 (defn deref-until-atoms-exhausted [t atom-locations-atom]
@@ -158,7 +192,7 @@
     (if (= t' t)
       t
       (do (println "NOT EQUAL: " t')
-          (swap! atom-locations-atom conj t)
+          #_(swap! atom-locations-atom conj t)
           (deref-until-atoms-exhausted t' atom-locations-atom))
       )
     )
