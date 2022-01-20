@@ -156,17 +156,26 @@
            %)
          )) t))
 
-(defn recurse-map [m key-path atom-paths]
-  (map (fn [[k v]]
-         (if (and (keyword? k) (map? v))
-           (do
-
-             (println "KEYPATH: " key-path ", K/V: " k " , " v)
-             (recurse-map v (conj key-path k) atom-paths)
-             )
-           (when (= (type v) (type (atom {})))
-             (swap! atom-paths conj (conj key-path k)))
-           )) m))
+(defn recurse-map
+  "I think this is it! This de-atomizes a map and writes out where the atoms
+   were in the atom-paths atom as well as what type of object they were."
+  [m key-path atom-paths]
+  (into (hash-map)
+        (map (fn [[k v]]
+               (if (keyword? k)
+                 (let [key-path' (conj key-path k)]
+                   (do (println "KEYWORD: " k)
+                       (if (= (type v) (type (atom {})))
+                         (do (println "ATOM! at " key-path')
+                             (swap! atom-paths conj [(type @v) key-path'])
+                             (println "Recursing into ATOM: " (keys @v))
+                             [k (recurse-map @v key-path' atom-paths)])
+                         (if (map? v)
+                           (do (println "MAP! at " key-path')
+                               #_(swap! atom-paths conj key-path')
+                               (println "Recursing into MAP: " (keys v))
+                               [k (recurse-map v key-path' atom-paths)])
+                           [k v])))) [k v])) m)))
 
 
 (defn deref-atoms-over-tree2 [t]
