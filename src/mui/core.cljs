@@ -167,7 +167,7 @@
                    (do (println "KEYWORD: " k)
                        (if (= (type v) (type (atom {})))
                          (do (println "ATOM! at " key-path')
-                             (swap! atom-paths conj [(type @v) key-path'])
+                             (swap! atom-paths conj [key-path' (type @v)])
                              (println "Recursing into ATOM: " (keys @v))
                              [k (recurse-map @v key-path' atom-paths)])
                          (if (map? v)
@@ -262,7 +262,7 @@
           (println "OBJ AS PLAIN MAP: " obj-as-plain-map)
 
           (recur rest-sorted-paths-to-atom
-                 (re-atomized-obj)  #_(assoc-in re-atomized-obj first-path #_identity (atom (re-hydration-fn obj-as-plain-map)))))
+                 (assoc-in re-atomized-obj first-path #_identity (atom (re-hydration-fn obj-as-plain-map)))))
         (do
           ;(println "RE-ATOMIZED OBJ: " re-atomized-obj)
 
@@ -272,7 +272,7 @@
                 ;      re-hydrated-raster (get-in re-atomized-obj [:mui-object-store :Raster :rst1 :obj])
                 ;      original-atom @original-obj-atom
                 ;      original-raster (get-in original-atom [:Raster :rst1 :obj])
-                ;      _ (println )   #_(println "REPLACE THIS: " original-raster)
+                      _ (println "RE-ATOMIZED-OBJ: " re-atomized-obj)   #_(println "REPLACE THIS: " original-raster)
                 ;      _ (println "WITH THIS: " re-hydrated-raster)
                 ]
             ;(swap! original-raster assoc :raw-data (:raw-data @re-hydrated-raster))
@@ -697,7 +697,7 @@
                                                                                               :mui-object-store-ids :command-history
                                                                                               :cmd-maps-atom :keystroke-to-key-sym-map-atom
                                                                                               })
-                                                                 de-atomized-data (de-atomize data [] paths-to-atoms-atom)
+                                                                 de-atomized-data (recurse-map data () paths-to-atoms-atom)  #_(de-atomize data [] paths-to-atoms-atom)
                                                                  _ (println "DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:DE-ATOMIZED-DATA:")
                                                                  _ (pprint de-atomized-data)
                                                                  data-map {:download-filename download-filename
