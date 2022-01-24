@@ -264,7 +264,7 @@
           (recur rest-sorted-paths-to-atom
                  (assoc-in re-atomized-obj first-path #_identity (atom (re-hydration-fn obj-as-plain-map)))))
         (do
-          ;(println "RE-ATOMIZED OBJ: " re-atomized-obj)
+          (println "RE-ATOMIZED OBJ: " re-atomized-obj)
 
           (let [
                 last-sorted-path (first (last sorted-paths-to-atoms))
@@ -886,17 +886,33 @@
 
 
 
+(def tmp-atom (atom {}))
+
+(def tmp-paths-atom (atom []))
 
 
+(defn atomize-by-path [h [path-list obj-type]]
+  (let [re-hydration-key (str obj-type)
+        re-hydration-map (:re-hydration-map @application-defined-types)
+        re-hydration-fn (re-hydration-map re-hydration-key)
+        path (reverse (vec path-list))
+        ;original-object (get-in h path)
+        ]
+    (update-in h path re-hydration-fn)
+    )
+  )
 
 
 (defn de-serialize-file-data [m]
+  (println "KEYS of m: " (keys m))
   ;; Search/replace regex to clean out function objects in Intellij: #object\[rasto\$example\$[a-z_]+_fn\] --> nil
   (println "RUNNING: de-serialize-file-data - :application-defined-types" (get-in m [:data :application-defined-types]))
   (println "RUNNING: de-serialize-file-data - :mui-object-store-ids")
   (println "RUNNING: de-serialize-file-data - :mui-object-store" (get-in m [:data :mui-object-store]))
   (println "RUNNING: de-serialize-file-data - :paths-to-atoms" (reverse (sort-by #(count (first %)) (get-in m [:paths-to-atoms]))))
-  (let [atomized-objects (atomize mui-object-store (get-in m [:data])
+  (let [raw-mui-object-store (get-in m [:data :mui-object-store])
+
+        atomized-objects (atomize mui-object-store raw-mui-object-store
                                   (reverse (sort-by #(count (first %))
                                                     (get-in m [:paths-to-atoms]))))
         ds-mui-object-store-ids (get-in m [:data :mui-object-store-ids])
@@ -909,6 +925,8 @@
     ;(swap! existing-rst1 assoc :brushes (:brushes uploaded-rst1))
     ;(println "EXISTING RST1 AFTER RESET: " existing-rst1)
     ; (reset! mui-object-store (:mui-object-store atomized-objects))
+    (reset! tmp-paths-atom (reverse (sort-by #(count (first %)) (get-in m [:paths-to-atoms]))))
+    (reset! tmp-atom #_atomized-objects raw-mui-object-store)
     (reset! mui-object-store-ids ds-mui-object-store-ids)
     )
   )
