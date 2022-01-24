@@ -908,8 +908,8 @@
     ;(swap! existing-rst1 assoc :raw-data (:raw-data uploaded-rst1))
     ;(swap! existing-rst1 assoc :brushes (:brushes uploaded-rst1))
     ;(println "EXISTING RST1 AFTER RESET: " existing-rst1)
-    ;(reset! mui-object-store (:mui-object-store atomized-objects))
-    ;(reset! mui-object-store-ids ds-mui-object-store-ids)
+    ; (reset! mui-object-store (:mui-object-store atomized-objects))
+    (reset! mui-object-store-ids ds-mui-object-store-ids)
     )
   )
 
